@@ -14,10 +14,27 @@ const writeData = (data) => {
   fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
 };
 
-// Create a new component
-app.post("/components", (req, res) => {
+// Read all components
+app.get("/components", (req, res) => {
   const data = readData();
-  const { category, component } = req.body;
+  res.json(data);
+});
+
+// Create a new category
+app.post("/categories", (req, res) => {
+  const data = readData();
+  const newCategory = req.body;
+  newCategory.components = [];
+  data.push(newCategory);
+  writeData(data);
+  res.status(201).json(newCategory);
+});
+
+// Create a new component within a category
+app.post("/categories/:category/components", (req, res) => {
+  const data = readData();
+  const { category } = req.params;
+  const component = req.body;
   const categoryIndex = data.findIndex((c) => c.category === category);
 
   if (categoryIndex !== -1) {
@@ -31,12 +48,6 @@ app.post("/components", (req, res) => {
   } else {
     res.status(404).send("Category not found");
   }
-});
-
-// Read all components
-app.get("/components", (req, res) => {
-  const data = readData();
-  res.json(data);
 });
 
 // Update a component
