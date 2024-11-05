@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "name": "Colors",
+    "figma": "✅",
+    "guidelines": "✅",
+    "cdn": "✅",
+    "storybook": "✅",
+    "comments": "Comment"
+  },
+  {
+    "id": 2,
+    "name": "Shadows",
+    "figma": "✅",
+    "guidelines": "✅",
+    "cdn": "✅",
+    "storybook": "✅",
+    "comments": "Comment"
+  },
+  {
+    "name": "New Element",
+    "figma": "✅",
+    "guidelines": "✅",
+    "cdn": "✅",
+    "storybook": "✅",
+    "comments": "This is a new comment",
+    "id": 3
+  }
+]
