@@ -1,8 +1,10 @@
 const express = require("express");
 const fs = require("fs");
+const cors = require("cors"); // Importa el paquete cors
 const app = express();
 const port = process.env.PORT || 3000;
 
+app.use(cors()); // Usa el middleware cors
 app.use(express.json());
 
 const readData = () => {
