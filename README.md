@@ -205,7 +205,9 @@ This API allows managing categories and components within a JSON file. Below are
 ### Delete a Component
 
 **URL:** /categories/:category/components/:id
+
 **Method:** DELETE
+
 **Description:** Deletes a component from a category.
 
 #### URL Parameters:
