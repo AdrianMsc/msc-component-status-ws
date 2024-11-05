@@ -14,45 +14,45 @@ const writeData = (data) => {
   fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
 };
 
-// Crear un nuevo elemento
-app.post("/elementos", (req, res) => {
-  const elementos = readData();
+// Create a new element
+app.post("/elements", (req, res) => {
+  const elements = readData();
   const nuevoElemento = req.body;
-  nuevoElemento.id = elementos.length + 1;
-  elementos.push(nuevoElemento);
-  writeData(elementos);
+  nuevoElemento.id = elements.length + 1;
+  elements.push(nuevoElemento);
+  writeData(elements);
   res.status(201).json(nuevoElemento);
 });
 
-// Leer todos los elementos
-app.get("/elementos", (req, res) => {
-  const elementos = readData();
-  res.json(elementos);
+// Read all elements
+app.get("/elements", (req, res) => {
+  const elements = readData();
+  res.json(elements);
 });
 
-// Actualizar un elemento
-app.put("/elementos/:id", (req, res) => {
-  const elementos = readData();
+// Update an element
+app.put("/elements/:id", (req, res) => {
+  const elements = readData();
   const id = parseInt(req.params.id);
-  const index = elementos.findIndex((e) => e.id === id);
+  const index = elements.findIndex((e) => e.id === id);
   if (index !== -1) {
-    elementos[index] = { ...elementos[index], ...req.body };
-    writeData(elementos);
-    res.json(elementos[index]);
+    elements[index] = { ...elements[index], ...req.body };
+    writeData(elements);
+    res.json(elements[index]);
   } else {
-    res.status(404).send("Elemento no encontrado");
+    res.status(404).send("Element not found");
   }
 });
 
-// Borrar un elemento
-app.delete("/elementos/:id", (req, res) => {
-  let elementos = readData();
+// Delete an element
+app.delete("/elements/:id", (req, res) => {
+  let elements = readData();
   const id = parseInt(req.params.id);
-  elementos = elementos.filter((e) => e.id !== id);
-  writeData(elementos);
+  elements = elements.filter((e) => e.id !== id);
+  writeData(elements);
   res.status(204).send();
 });
 
 app.listen(port, () => {
-  console.log(`Servidor escuchando en http://localhost:${port}`);
+  console.log(`Server listening on http://localhost:${port}`);
 });
