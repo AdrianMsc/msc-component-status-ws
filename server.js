@@ -14,43 +14,71 @@ const writeData = (data) => {
   fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
 };
 
-// Create a new element
-app.post("/elements", (req, res) => {
-  const elements = readData();
-  const nuevoElemento = req.body;
-  nuevoElemento.id = elements.length + 1;
-  elements.push(nuevoElemento);
-  writeData(elements);
-  res.status(201).json(nuevoElemento);
-});
+// Create a new component
+app.post("/components", (req, res) => {
+  const data = readData();
+  const { category, component } = req.body;
+  const categoryIndex = data.findIndex((c) => c.category === category);
 
-// Read all elements
-app.get("/elements", (req, res) => {
-  const elements = readData();
-  res.json(elements);
-});
-
-// Update an element
-app.put("/elements/:id", (req, res) => {
-  const elements = readData();
-  const id = parseInt(req.params.id);
-  const index = elements.findIndex((e) => e.id === id);
-  if (index !== -1) {
-    elements[index] = { ...elements[index], ...req.body };
-    writeData(elements);
-    res.json(elements[index]);
+  if (categoryIndex !== -1) {
+    const newComponent = {
+      ...component,
+      id: data[categoryIndex].components.length + 1,
+    };
+    data[categoryIndex].components.push(newComponent);
+    writeData(data);
+    res.status(201).json(newComponent);
   } else {
-    res.status(404).send("Element not found");
+    res.status(404).send("Category not found");
   }
 });
 
-// Delete an element
-app.delete("/elements/:id", (req, res) => {
-  let elements = readData();
-  const id = parseInt(req.params.id);
-  elements = elements.filter((e) => e.id !== id);
-  writeData(elements);
-  res.status(204).send();
+// Read all components
+app.get("/components", (req, res) => {
+  const data = readData();
+  res.json(data);
+});
+
+// Update a component
+app.put("/components/:category/:id", (req, res) => {
+  const data = readData();
+  const { category, id } = req.params;
+  const categoryIndex = data.findIndex((c) => c.category === category);
+
+  if (categoryIndex !== -1) {
+    const componentIndex = data[categoryIndex].components.findIndex(
+      (c) => c.id === parseInt(id)
+    );
+    if (componentIndex !== -1) {
+      data[categoryIndex].components[componentIndex] = {
+        ...data[categoryIndex].components[componentIndex],
+        ...req.body,
+      };
+      writeData(data);
+      res.json(data[categoryIndex].components[componentIndex]);
+    } else {
+      res.status(404).send("Component not found");
+    }
+  } else {
+    res.status(404).send("Category not found");
+  }
+});
+
+// Delete a component
+app.delete("/components/:category/:id", (req, res) => {
+  const data = readData();
+  const { category, id } = req.params;
+  const categoryIndex = data.findIndex((c) => c.category === category);
+
+  if (categoryIndex !== -1) {
+    data[categoryIndex].components = data[categoryIndex].components.filter(
+      (c) => c.id !== parseInt(id)
+    );
+    writeData(data);
+    res.status(204).send();
+  } else {
+    res.status(404).send("Category not found");
+  }
 });
 
 app.listen(port, () => {
