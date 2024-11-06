@@ -101,9 +101,9 @@ app.delete("/categories/:category", (req, res) => {
   const categoryIndex = data.findIndex((c) => c.category === category);
 
   if (categoryIndex !== -1) {
-    data.splice(categoryIndex, 1);
+    const deletedCategory = data.splice(categoryIndex, 1)[0];
     writeData(data);
-    res.status(204).send();
+    res.status(200).json("Categoría Borrada", deletedCategory);
   } else {
     res.status(404).send("Category not found");
   }
