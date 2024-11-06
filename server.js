@@ -94,6 +94,21 @@ app.delete("/components/:category/:id", (req, res) => {
   }
 });
 
+// Delete a category
+app.delete("/categories/:category", (req, res) => {
+  const data = readData();
+  const { category } = req.params;
+  const categoryIndex = data.findIndex((c) => c.category === category);
+
+  if (categoryIndex !== -1) {
+    data.splice(categoryIndex, 1);
+    writeData(data);
+    res.status(204).send();
+  } else {
+    res.status(404).send("Category not found");
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);
 });
