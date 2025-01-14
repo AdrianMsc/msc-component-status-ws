@@ -22,7 +22,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       },
       {
         "name": "Shadows",
@@ -44,7 +45,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 2
       },
       {
         "name": "Spacing",
@@ -66,7 +68,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 3
       },
       {
         "name": "Typography",
@@ -88,7 +91,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 4
       }
     ]
   },
@@ -115,7 +119,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       },
       {
         "name": "CartActionBar",
@@ -137,7 +142,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 2
       },
       {
         "name": "Dropdown",
@@ -159,7 +165,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 3
       },
       {
         "name": "Filter",
@@ -181,7 +188,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 4
       },
       {
         "name": "Link",
@@ -203,7 +211,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 5
       },
       {
         "name": "Tabs",
@@ -225,7 +234,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 6
       }
     ]
   },
@@ -252,7 +262,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       },
       {
         "name": "Input",
@@ -274,7 +285,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 2
       },
       {
         "name": "Radio",
@@ -296,7 +308,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 3
       },
       {
         "name": "Toggle",
@@ -318,7 +331,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 4
       }
     ]
   },
@@ -345,7 +359,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       },
       {
         "name": "Spinner",
@@ -367,7 +382,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 2
       }
     ]
   },
@@ -394,7 +410,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       }
     ]
   },
@@ -421,7 +438,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       },
       {
         "name": "Breadcrumb",
@@ -443,7 +461,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 2
       },
       {
         "name": "Pagination",
@@ -465,7 +484,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 3
       }
     ]
   },
@@ -492,7 +512,8 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 1
       },
       {
         "name": "Modal",
@@ -514,7 +535,31 @@
             "status": "✅"
           }
         ],
-        "comment": "Comment"
+        "comment": "Comment",
+        "id": 2
+      },
+      {
+        "name": "Table Modal",
+        "statuses": [
+          {
+            "platform": "Figma",
+            "status": "✅"
+          },
+          {
+            "platform": "Guidelines",
+            "status": "🧱"
+          },
+          {
+            "platform": "CDN",
+            "status": "🧱"
+          },
+          {
+            "platform": "Storybook",
+            "status": "✅"
+          }
+        ],
+        "comment": "This is the modal table component with frozen column",
+        "id": 3
       }
     ]
   }
