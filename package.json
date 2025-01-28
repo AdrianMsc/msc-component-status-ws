@@ -4,14 +4,18 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "neon": "node neon-index.js",
+    "devneon": "nodemon neon-index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.21.1"
   },
   "devDependencies": {
