@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors");
 const { neon } = require("@neondatabase/serverless");
 
 const app = express();
@@ -8,137 +9,153 @@ const PORT = process.env.PORT || 4242;
 
 app.use(express.json());
 
+app.use(cors());
+
 const sql = neon(`${process.env.DATABASE_URL}`);
 
 // Read all components
 app.get("/components", async (_, res) => {
   try {
-    const response = await sql`
-      SELECT 
-        c.id AS component_id,
-        c.name AS component_name,
-        c.description,
-        cat.id AS category_id,
-        cat.name AS category_name
-      FROM 
+    const query = `
+     SELECT 
+    c.id AS component_id,
+    c.name AS component_name,
+    c.category AS component_category,
+    c.comment AS component_comment,
+    s.guidelines AS component_guidelines,  
+    s.figma AS component_figma,
+    s.storybook AS component_storybook,
+    s.cdn AS component_cdn
+    FROM 
         component c
-      JOIN 
-        category cat ON c.category_id = cat.id;
+    LEFT JOIN 
+        statuses s ON c.id = s.comp_id
+    ORDER BY
+        c.id;
+ 
     `;
-    res.json(response);
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
 
-// Create a new category
-app.post("/categories", async (req, res) => {
-  const { name } = req.body;
-  try {
-    const response = await sql`
-      INSERT INTO category (name) VALUES (${name}) RETURNING *;
-    `;
-    res.status(201).json(response[0]);
+    const rows = await sql(query);
+
+    // Agrupar los componentes por categoría
+    const result = rows.reduce((acc, row) => {
+      let category = acc.find((c) => c.category === row.component_category);
+      if (!category) {
+        category = { category: row.component_category, components: [] };
+        acc.push(category);
+      }
+
+      let component = category.components.find(
+        (c) => c.id === row.component_id
+      );
+      if (!component) {
+        component = {
+          id: row.component_id,
+          name: row.component_name,
+          comment: row.component_comment,
+          statuses: [
+            {
+              guideline_id: row.guideline_id,
+              guidelines: row.component_guidelines,
+              figma: row.component_figma,
+              storybook: row.component_storybook,
+              cdn: row.component_cdn,
+            },
+          ],
+        };
+        category.components.push(component);
+      } else {
+        component.statuses.push({
+          guideline_id: row.guideline_id,
+          guidelines: row.component_guidelines,
+          figma: row.component_figma,
+          storybook: row.component_storybook,
+          cdn: row.component_cdn,
+        });
+      }
+
+      return acc;
+    }, []);
+
+    res.json(result);
   } catch (error) {
-    console.error("Error executing query:", error);
+    console.error("Error fetching components:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
 // Create a new component within a category
+
 app.post("/categories/:category/components", async (req, res) => {
   const { category } = req.params;
-  const { name, description } = req.body;
+  const { name, comment, figma, guidelines, cdn, storybook } = req.body;
+
+  if (!name || !comment) {
+    return res.status(400).json({ error: "Faltan datos requeridos." });
+  }
+
   try {
-    const categoryResult = await sql`
-      SELECT id FROM category WHERE name = ${category};
-    `;
-    if (categoryResult.length > 0) {
-      const categoryId = categoryResult[0].id;
-      const response = await sql`
-        INSERT INTO component (name, description, category_id) VALUES (${name}, ${description}, ${categoryId}) RETURNING *;
-      `;
-      res.status(201).json(response[0]);
-    } else {
-      res.status(404).send("Category not found");
-    }
+    const componentResult = await sql(
+      "INSERT INTO component (name, category, comment) VALUES ($1, $2, $3) RETURNING id",
+      [name, category, comment]
+    );
+
+    const componentId = componentResult[0].id;
+
+    await sql(
+      "INSERT INTO statuses (comp_id, figma, guidelines, cdn, storybook) VALUES ($1, $2, $3, $4, $5)",
+      [componentId, figma, guidelines, cdn, storybook]
+    );
+
+    res
+      .status(201)
+      .json({ message: "Componente creado exitosamente", componentId });
   } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error al insertar componente:", error);
+    res.status(500).json({ error: "Error al insertar componente" });
   }
 });
 
+// Create a new category
+app.post("/categories", async (req, res) => {});
+
 // Update a component
-app.put("/components/:category/:id", async (req, res) => {
-  const { category, id } = req.params;
-  const { name, description } = req.body;
-  try {
-    const categoryResult = await sql`
-      SELECT id FROM category WHERE name = ${category};
-    `;
-    if (categoryResult.length > 0) {
-      const categoryId = categoryResult[0].id;
-      const response = await sql`
-        UPDATE component SET name = ${name}, description = ${description}, category_id = ${categoryId} WHERE id = ${id} RETURNING *;
-      `;
-      if (response.length > 0) {
-        res.json(response[0]);
-      } else {
-        res.status(404).send("Component not found");
-      }
-    } else {
-      res.status(404).send("Category not found");
-    }
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.put("/components/:category/:id", async (req, res) => {});
 
 // Delete a component
 app.delete("/components/:category/:id", async (req, res) => {
-  const { category, id } = req.params;
+  const { category, id } = req.params; // Obtenemos category y id de la URL
+
   try {
-    const categoryResult = await sql`
-      SELECT id FROM category WHERE name = ${category};
+    const result = await sql`
+      WITH ins_component AS (
+        DELETE FROM component
+        WHERE id = ${id} AND category = ${category}
+        RETURNING id
+      )
+      DELETE FROM statuses
+      WHERE comp_id IN (SELECT id FROM ins_component);
     `;
-    if (categoryResult.length > 0) {
-      const categoryId = categoryResult[0].id;
-      const response = await sql`
-        DELETE FROM component WHERE id = ${id} AND category_id = ${categoryId} RETURNING *;
-      `;
-      if (response.length > 0) {
-        res.status(204).send();
-      } else {
-        res.status(404).send("Component not found");
-      }
-    } else {
-      res.status(404).send("Category not found");
+
+    if (result.rowCount === 0) {
+      return res
+        .status(404)
+        .json({ message: "Componente no encontrado o no se pudo eliminar." });
     }
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+
+    res
+      .status(200)
+      .json({
+        message: "Componente y sus registros asociados eliminados con éxito.",
+      });
+  } catch (err) {
+    console.error("Error al eliminar componente:", err);
+    res.status(500).json({ message: "Error al eliminar el componente." });
   }
 });
 
 // Delete a category
-app.delete("/categories/:category", async (req, res) => {
-  const { category } = req.params;
-  try {
-    const response = await sql`
-      DELETE FROM category WHERE name = ${category} RETURNING *;
-    `;
-    if (response.length > 0) {
-      res.status(200).json(response[0]);
-    } else {
-      res.status(404).send("Category not found");
-    }
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.delete("/categories/:category", async (req, res) => {});
 
 app.listen(PORT, () => {
   console.log(`Listening to http://localhost:${PORT}`);
