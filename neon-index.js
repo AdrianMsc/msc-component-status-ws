@@ -14,40 +14,34 @@ const sql = neon(`${process.env.DATABASE_URL}`);
 app.get("/components", async (_, res) => {
   try {
     const query = `
-    SELECT 
-        c.id AS component_id,
-        c.name AS component_name,
-        c.description,
-        cat.id AS category_id,
-        cat.name AS category_name,
-        s.name AS status_name,
-        p.name AS platform_name
+     SELECT 
+    c.id AS component_id,
+    c.name AS component_name,
+    c.category AS component_category,
+    c.comment AS component_comment,
+    s.guidelines AS component_guidelines,  
+    s.figma AS component_figma,
+    s.storybook AS component_storybook,
+    s.cdn AS component_cdn
     FROM 
         component c
-    JOIN 
-        category cat ON c.category_id = cat.id
-    JOIN 
-        component_status cs ON cs.component_id = c.id
-    JOIN 
-        stage s ON s.id = cs.stage_id
-    JOIN 
-        platform p ON p.id = cs.platform_id
-    ORDER BY 
-        c.id, cs.stage_id, cs.platform_id;
+    LEFT JOIN 
+        statuses s ON c.id = s.comp_id
+    ORDER BY
+        c.id;
+ 
     `;
 
     const rows = await sql(query);
 
     // Agrupar los componentes por categoría
     const result = rows.reduce((acc, row) => {
-      // Busca la categoría en el acumulador
-      let category = acc.find((c) => c.category === row.category_name);
+      let category = acc.find((c) => c.category === row.component_category);
       if (!category) {
-        category = { category: row.category_name, components: [] };
+        category = { category: row.component_category, components: [] };
         acc.push(category);
       }
 
-      // Busca el componente en la categoría
       let component = category.components.find(
         (c) => c.id === row.component_id
       );
@@ -55,20 +49,25 @@ app.get("/components", async (_, res) => {
         component = {
           id: row.component_id,
           name: row.component_name,
-          statuses: [],
-          comment: row.description,
+          comment: row.component_comment,
+          statuses: [
+            {
+              guideline_id: row.guideline_id,
+              guidelines: row.component_guidelines,
+              figma: row.component_figma,
+              storybook: row.component_storybook,
+              cdn: row.component_cdn,
+            },
+          ],
         };
         category.components.push(component);
-      }
-
-      // Agregar el estado y plataforma si no están ya en la lista
-      const existingStatus = component.statuses.find(
-        (s) => s.platform === row.platform_name && s.status === row.status_name
-      );
-      if (!existingStatus) {
+      } else {
         component.statuses.push({
-          platform: row.platform_name,
-          status: row.status_name,
+          guideline_id: row.guideline_id,
+          guidelines: row.component_guidelines,
+          figma: row.component_figma,
+          storybook: row.component_storybook,
+          cdn: row.component_cdn,
         });
       }
 
@@ -82,152 +81,49 @@ app.get("/components", async (_, res) => {
   }
 });
 
-// Create a new category
-app.post("/categories", async (req, res) => {
-  const { name } = req.body;
-  try {
-    const response = await sql`
-      INSERT INTO category (name) VALUES (${name}) RETURNING *;
-    `;
-    res.status(201).json(response[0]);
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
 // Create a new component within a category
-// app.post("/categories/:category/components", async (req, res) => {
-//   const { category } = req.params;
-//   const { name, description } = req.body;
-//   try {
-//     const categoryResult = await sql`
-//       SELECT id FROM category WHERE name = ${category};
-//     `;
-//     if (categoryResult.length > 0) {
-//       const categoryId = categoryResult[0].id;
-//       const response = await sql`
-//         INSERT INTO component (name, description, category_id) VALUES (${name}, ${description}, ${categoryId}) RETURNING *;
-//       `;
-//       res.status(201).json(response[0]);
-//     } else {
-//       res.status(404).send("Category not found");
-//     }
-//   } catch (error) {
-//     console.error("Error executing query:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
 
 app.post("/categories/:category/components", async (req, res) => {
   const { category } = req.params;
-  const { name, comment } = req.body;
+  const { name, comment, figma, guidelines, cdn, storybook } = req.body;
+
+  if (!name || !comment) {
+    return res.status(400).json({ error: "Faltan datos requeridos." });
+  }
 
   try {
-    // Obtener el ID de la categoría
-    const categoryResult = await sql`
-      SELECT id FROM category WHERE name = ${category};
-    `;
+    const componentResult = await sql(
+      "INSERT INTO component (name, category, comment) VALUES ($1, $2, $3) RETURNING id",
+      [name, category, comment]
+    );
 
-    if (categoryResult.length === 0) {
-      return res.status(404).json({ message: "Category not found" });
-    }
+    const componentId = componentResult[0].id;
 
-    const categoryId = categoryResult[0].id;
+    await sql(
+      "INSERT INTO statuses (comp_id, figma, guidelines, cdn, storybook) VALUES ($1, $2, $3, $4, $5)",
+      [componentId, figma, guidelines, cdn, storybook]
+    );
 
-    // Verificar si el componente ya existe en la categoría
-    const existingComponent = await sql`
-      SELECT * FROM component WHERE name = ${name} AND category_id = ${categoryId};
-    `;
-
-    if (existingComponent.length > 0) {
-      return res.status(409).json({ message: "Component already exists" });
-    }
-
-    // Insertar el nuevo componente
-    const response = await sql`
-      INSERT INTO component (name, comment, category_id)
-      VALUES (${name}, ${comment}, ${categoryId})
-      RETURNING *;
-    `;
-
-    res.status(201).json(response[0]);
+    res
+      .status(201)
+      .json({ message: "Componente creado exitosamente", componentId });
   } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error al insertar componente:", error);
+    res.status(500).json({ error: "Error al insertar componente" });
   }
 });
+
+// Create a new category
+app.post("/categories", async (req, res) => {});
 
 // Update a component
-app.put("/components/:category/:id", async (req, res) => {
-  const { category, id } = req.params;
-  const { name, description } = req.body;
-  try {
-    const categoryResult = await sql`
-      SELECT id FROM category WHERE name = ${category};
-    `;
-    if (categoryResult.length > 0) {
-      const categoryId = categoryResult[0].id;
-      const response = await sql`
-        UPDATE component SET name = ${name}, description = ${description}, category_id = ${categoryId} WHERE id = ${id} RETURNING *;
-      `;
-      if (response.length > 0) {
-        res.json(response[0]);
-      } else {
-        res.status(404).send("Component not found");
-      }
-    } else {
-      res.status(404).send("Category not found");
-    }
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.put("/components/:category/:id", async (req, res) => {});
 
 // Delete a component
-app.delete("/components/:category/:id", async (req, res) => {
-  const { category, id } = req.params;
-  try {
-    const categoryResult = await sql`
-      SELECT id FROM category WHERE name = ${category};
-    `;
-    if (categoryResult.length > 0) {
-      const categoryId = categoryResult[0].id;
-      const response = await sql`
-        DELETE FROM component WHERE id = ${id} AND category_id = ${categoryId} RETURNING *;
-      `;
-      if (response.length > 0) {
-        res.status(204).send();
-      } else {
-        res.status(404).send("Component not found");
-      }
-    } else {
-      res.status(404).send("Category not found");
-    }
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.delete("/components/:category/:id", async (req, res) => {});
 
 // Delete a category
-app.delete("/categories/:category", async (req, res) => {
-  const { category } = req.params;
-  try {
-    const response = await sql`
-      DELETE FROM category WHERE name = ${category} RETURNING *;
-    `;
-    if (response.length > 0) {
-      res.status(200).json(response[0]);
-    } else {
-      res.status(404).send("Category not found");
-    }
-  } catch (error) {
-    console.error("Error executing query:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+app.delete("/categories/:category", async (req, res) => {});
 
 app.listen(PORT, () => {
   console.log(`Listening to http://localhost:${PORT}`);
