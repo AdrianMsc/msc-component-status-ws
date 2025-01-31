@@ -1,12 +1,15 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors");
 const { neon } = require("@neondatabase/serverless");
 
 const app = express();
 const PORT = process.env.PORT || 4242;
 
 app.use(express.json());
+
+app.use(cors());
 
 const sql = neon(`${process.env.DATABASE_URL}`);
 
@@ -120,7 +123,36 @@ app.post("/categories", async (req, res) => {});
 app.put("/components/:category/:id", async (req, res) => {});
 
 // Delete a component
-app.delete("/components/:category/:id", async (req, res) => {});
+app.delete("/components/:category/:id", async (req, res) => {
+  const { category, id } = req.params; // Obtenemos category y id de la URL
+
+  try {
+    const result = await sql`
+      WITH ins_component AS (
+        DELETE FROM component
+        WHERE id = ${id} AND category = ${category}
+        RETURNING id
+      )
+      DELETE FROM statuses
+      WHERE comp_id IN (SELECT id FROM ins_component);
+    `;
+
+    if (result.rowCount === 0) {
+      return res
+        .status(404)
+        .json({ message: "Componente no encontrado o no se pudo eliminar." });
+    }
+
+    res
+      .status(200)
+      .json({
+        message: "Componente y sus registros asociados eliminados con éxito.",
+      });
+  } catch (err) {
+    console.error("Error al eliminar componente:", err);
+    res.status(500).json({ message: "Error al eliminar el componente." });
+  }
+});
 
 // Delete a category
 app.delete("/categories/:category", async (req, res) => {});
