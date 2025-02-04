@@ -116,9 +116,6 @@ app.post("/categories/:category/components", async (req, res) => {
   }
 });
 
-// Create a new category
-app.post("/categories", async (req, res) => {});
-
 // Update a component
 app.put("/components/:category/:id", async (req, res) => {});
 
@@ -143,16 +140,17 @@ app.delete("/components/:category/:id", async (req, res) => {
         .json({ message: "Componente no encontrado o no se pudo eliminar." });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Componente y sus registros asociados eliminados con éxito.",
-      });
+    res.status(200).json({
+      message: "Componente y sus registros asociados eliminados con éxito.",
+    });
   } catch (err) {
     console.error("Error al eliminar componente:", err);
     res.status(500).json({ message: "Error al eliminar el componente." });
   }
 });
+
+// Create a new category
+app.post("/categories", async (req, res) => {});
 
 // Delete a category
 app.delete("/categories/:category", async (req, res) => {});
