@@ -117,7 +117,37 @@ app.post("/categories/:category/components", async (req, res) => {
 });
 
 // Update a component
-app.put("/components/:category/:id", async (req, res) => {});
+app.put("/categories/:category/components/:id", async (req, res) => {
+  const { category, id } = req.params;
+  const { name, comment, figma, guidelines, cdn, storybook } = req.body;
+
+  if (!name || !comment) {
+    return res.status(400).json({ error: "Required data incomplete." });
+  }
+
+  try {
+    const componentResult = await sql(
+      "UPDATE component SET name = $1, category = $2, comment = $3 WHERE id = $4 RETURNING id",
+      [name, category, comment, id]
+    );
+
+    if (componentResult.length === 0) {
+      return res.status(404).json({ error: "Component not found." });
+    }
+
+    await sql(
+      "UPDATE statuses SET figma = $1, guidelines = $2, cdn = $3, storybook = $4 WHERE comp_id = $5",
+      [figma, guidelines, cdn, storybook, id]
+    );
+
+    res
+      .status(200)
+      .json({ message: "Component and statuses updated successfully" });
+  } catch (error) {
+    console.error("Error updating component and statuses:", error);
+    res.status(500).json({ error: "Error updating component and statuses" });
+  }
+});
 
 // Delete a component
 app.delete("/components/:category/:id", async (req, res) => {
@@ -150,10 +180,10 @@ app.delete("/components/:category/:id", async (req, res) => {
 });
 
 // Create a new category
-app.post("/categories", async (req, res) => {});
+// app.post("/categories", async (req, res) => {});
 
 // Delete a category
-app.delete("/categories/:category", async (req, res) => {});
+// app.delete("/categories/:category", async (req, res) => {});
 
 app.listen(PORT, () => {
   console.log(`Listening to http://localhost:${PORT}`);
