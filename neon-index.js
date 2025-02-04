@@ -91,7 +91,7 @@ app.post("/categories/:category/components", async (req, res) => {
   const { name, comment, figma, guidelines, cdn, storybook } = req.body;
 
   if (!name || !comment) {
-    return res.status(400).json({ error: "Faltan datos requeridos." });
+    return res.status(400).json({ error: "Required data incomplete." });
   }
 
   try {
@@ -109,10 +109,10 @@ app.post("/categories/:category/components", async (req, res) => {
 
     res
       .status(201)
-      .json({ message: "Componente creado exitosamente", componentId });
+      .json({ message: "Component created successfully", componentId });
   } catch (error) {
     console.error("Error al insertar componente:", error);
-    res.status(500).json({ error: "Error al insertar componente" });
+    res.status(500).json({ error: "Error creating component" });
   }
 });
 
@@ -137,15 +137,15 @@ app.delete("/components/:category/:id", async (req, res) => {
     if (result.rowCount === 0) {
       return res
         .status(404)
-        .json({ message: "Componente no encontrado o no se pudo eliminar." });
+        .json({ message: "Component not found or could not be erased." });
     }
 
     res.status(200).json({
-      message: "Componente y sus registros asociados eliminados con éxito.",
+      message: "Component and registers erased successfully.",
     });
   } catch (err) {
-    console.error("Error al eliminar componente:", err);
-    res.status(500).json({ message: "Error al eliminar el componente." });
+    console.error("Error erasing component:", err);
+    res.status(500).json({ message: "Error erasing component." });
   }
 });
 
