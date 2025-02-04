@@ -150,14 +150,14 @@ app.put("/categories/:category/components/:id", async (req, res) => {
 });
 
 // Delete a component
-app.delete("/components/:category/:id", async (req, res) => {
-  const { category, id } = req.params; // Obtenemos category y id de la URL
+app.delete("/components/:id", async (req, res) => {
+  const { id } = req.params; // Obtenemos category y id de la URL
 
   try {
     const result = await sql`
       WITH ins_component AS (
         DELETE FROM component
-        WHERE id = ${id} AND category = ${category}
+        WHERE id = ${id}
         RETURNING id
       )
       DELETE FROM statuses
