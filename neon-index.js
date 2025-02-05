@@ -123,7 +123,7 @@ app.put("/categories/:category/components/:id", async (req, res) => {
   const { category, id } = req.params;
   const { name, comment, figma, guidelines, cdn, storybook } = req.body;
 
-  if (!name || !comment) {
+  if (!name) {
     return res.status(400).json({ error: "Required data incomplete." });
   }
 
