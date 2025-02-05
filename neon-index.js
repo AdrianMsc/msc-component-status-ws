@@ -48,10 +48,12 @@ app.get("/components", async (_, res) => {
       let component = category.components.find(
         (c) => c.id === row.component_id
       );
+
       if (!component) {
         component = {
           id: row.component_id,
           name: row.component_name,
+          category: category.category,
           comment: row.component_comment,
           statuses: [
             {
