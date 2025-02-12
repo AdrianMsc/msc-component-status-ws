@@ -14,7 +14,7 @@ app.use(cors());
 const sql = neon(`${process.env.DATABASE_URL}`);
 
 app.get("/handshake", async (_, res) => {
-  await res.send("👍");
+  await res.json("👍");
 });
 
 // Read all components
