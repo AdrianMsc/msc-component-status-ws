@@ -8,7 +8,6 @@ const app = express();
 const PORT = process.env.PORT || 4242;
 
 app.use(express.json());
-
 app.use(cors());
 
 const sql = neon(`${process.env.DATABASE_URL}`);
@@ -26,6 +25,7 @@ app.get("/components", async (_, res) => {
     c.name AS component_name,
     c.category AS component_category,
     c.comment AS component_comment,
+    c.description AS component_description,
     s.guidelines AS component_guidelines,  
     s.figma AS component_figma,
     s.storybook AS component_storybook,
@@ -57,6 +57,7 @@ app.get("/components", async (_, res) => {
         component = {
           id: row.component_id,
           name: row.component_name,
+          description: row.component_description,
           category: category.category,
           comment: row.component_comment,
           statuses: [
@@ -94,7 +95,8 @@ app.get("/components", async (_, res) => {
 
 app.post("/categories/:category/components", async (req, res) => {
   const { category } = req.params;
-  const { name, comment, figma, guidelines, cdn, storybook } = req.body;
+  const { name, comment, description, figma, guidelines, cdn, storybook } =
+    req.body;
 
   if (!name) {
     return res.status(400).json({ error: "Required data incomplete." });
@@ -102,8 +104,8 @@ app.post("/categories/:category/components", async (req, res) => {
 
   try {
     const componentResult = await sql(
-      "INSERT INTO component (name, category, comment) VALUES ($1, $2, $3) RETURNING id",
-      [name, category, comment]
+      "INSERT INTO component (name, category, comment, description) VALUES ($1, $2, $3, $4) RETURNING id",
+      [name, category, comment, description]
     );
 
     const componentId = componentResult[0].id;
@@ -125,7 +127,8 @@ app.post("/categories/:category/components", async (req, res) => {
 // Update a component
 app.put("/categories/:category/components/:id", async (req, res) => {
   const { category, id } = req.params;
-  const { name, comment, figma, guidelines, cdn, storybook } = req.body;
+  const { name, comment, description, figma, guidelines, cdn, storybook } =
+    req.body;
 
   if (!name) {
     return res.status(400).json({ error: "Required data incomplete." });
@@ -133,8 +136,8 @@ app.put("/categories/:category/components/:id", async (req, res) => {
 
   try {
     const componentResult = await sql(
-      "UPDATE component SET name = $1, category = $2, comment = $3 WHERE id = $4 RETURNING id",
-      [name, category, comment, id]
+      "UPDATE component SET name = $1, category = $2, comment = $3, description = $4 WHERE id = $5 RETURNING id",
+      [name, category, comment, description, id]
     );
 
     if (componentResult.length === 0) {
