@@ -3,12 +3,23 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { neon } = require("@neondatabase/serverless");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const PORT = process.env.PORT || 4242;
 
 app.use(express.json());
 app.use(cors());
+
+// Define the rate limit rule
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  message: "Too many requests from this IP, please try again after 15 minutes",
+});
+
+// Apply the rate limiter to all requests
+app.use(limiter);
 
 const sql = neon(`${process.env.DATABASE_URL}`);
 
