@@ -27,6 +27,18 @@ app.get("/handshake", async (_, res) => {
   await res.json("👍");
 });
 
+app.get("/count", async (_, res) => {
+  try {
+    const query = `SELECT COUNT(*) FROM component;`;
+    const [result] = await sql(query);
+
+    res.json({ count: Number(result.count) });
+  } catch (error) {
+    console.error("Error counting components:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // Read all components
 app.get("/components", async (_, res) => {
   try {
@@ -52,7 +64,7 @@ app.get("/components", async (_, res) => {
 
     const rows = await sql(query);
 
-    // Agrupar los componentes por categoría
+    //Group components by category
     const result = rows.reduce((acc, row) => {
       let category = acc.find((c) => c.category === row.component_category);
       if (!category) {
