@@ -16,6 +16,25 @@ app.get("/handshake", async (_, res) => {
   await res.json("👍");
 });
 
+app.get("/allcomponents", async (_, res) => {
+  try {
+    const query = `
+    SELECT 
+    c.name
+    FROM 
+    component c
+    ORDER BY
+    c.name;
+    `;
+
+    const components = await sql(query);
+    await res.json(components);
+  } catch {
+    console.error("Error fetching components:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // Read all components
 app.get("/components", async (_, res) => {
   try {
