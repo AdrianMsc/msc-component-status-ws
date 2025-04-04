@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import limiter from "./src/middlewares/rateLimiter.js";
 import componentRoutes from "./src/routes/component.routes.js";
+import inboxRoutes from "./src/routes/inbox.routes.js";
 
 dotenv.config();
 
@@ -16,5 +17,6 @@ app.use(limiter);
 
 // Routes
 app.use("/", componentRoutes);
+app.use("/", inboxRoutes);
 
 app.listen(PORT, () => console.log(`Listening on http://localhost:${PORT}`));
