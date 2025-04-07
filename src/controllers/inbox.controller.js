@@ -12,37 +12,52 @@ export const getInboxMessages = async (_, res) => {
 };
 
 export const newInboxMessage = async (req, res) => {
-  const { name, email, message, status = "pending", read = false } = req.body;
-
-  if (!name || !email || !message) {
-    return res
-      .status(400)
-      .json({ error: "Name, Email, and Message are required" });
-  }
-
   try {
+    const {
+      name,
+      email,
+      message,
+      status = "pending",
+      read = false,
+    } = req.body ?? {};
+
+    // Validación simple pero clara
+    if (!name?.trim() || !email?.trim() || !message?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Name, email, and message are required.",
+      });
+    }
+
     const query = `
       INSERT INTO feedback (name, email, message, status, read)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id;
     `;
 
-    const values = [name, email, message, status, read];
+    const values = [name.trim(), email.trim(), message.trim(), status, read];
 
-    const result = await sql(query, values);
+    const [{ id }] = await sql(query, values);
 
-    res.status(201).json({
-      response: "Message successfully added!",
+    return res.status(201).json({
       success: true,
-      name: name,
-      email: email,
-      message: message,
-      status: status,
-      read: read,
+      message: "Message successfully added!",
+      data: {
+        id,
+        name,
+        email,
+        message,
+        status,
+        read,
+      },
     });
-  } catch (err) {
-    console.error("Error inserting feedback:", err);
-    res.status(500).json({ success: false, error: "Internal server error" });
+  } catch (error) {
+    console.error("Error inserting feedback:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "An unexpected error occurred. Please try again later.",
+    });
   }
 };
 
