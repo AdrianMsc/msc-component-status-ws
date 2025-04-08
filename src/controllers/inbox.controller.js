@@ -21,7 +21,6 @@ export const newInboxMessage = async (req, res) => {
       read = false,
     } = req.body ?? {};
 
-    // Validación simple pero clara
     if (!name?.trim() || !email?.trim() || !message?.trim()) {
       return res.status(400).json({
         success: false,

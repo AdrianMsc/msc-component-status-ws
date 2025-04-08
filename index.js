@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import limiter from "./src/middlewares/rateLimiter.js";
 import componentRoutes from "./src/routes/component.routes.js";
 import inboxRoutes from "./src/routes/inbox.routes.js";
+import morgan from "morgan";
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const PORT = process.env.PORT || 4242;
 app.use(express.json());
 app.use(cors());
 app.use(limiter);
+app.use(morgan("dev"));
 
 // Routes
 app.use("/", componentRoutes);
