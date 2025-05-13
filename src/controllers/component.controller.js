@@ -70,8 +70,8 @@ export const getAllComponents = async (_, res) => {
           category: category.category,
           comment: row.component_comment,
           statuses: [],
-          storybook_link: row.storybook_link,
-          figma_link: row.figma_link,
+          storybookLink: row.storybook_link,
+          figmaLink: row.figma_link,
         };
         category.components.push(component);
       }
