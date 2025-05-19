@@ -1,4 +1,5 @@
 import sql from "../config/db.js";
+import { uploadCompressedImage } from "../services/s3Service.js";
 
 export const handshake = async (_, res) => {
   await res.json("👍");
@@ -113,6 +114,9 @@ export const createComponent = async (req, res) => {
     storybookLink = "",
   } = req.body;
 
+  console.log("req.params:", req.params);
+  console.log("req.body:", req.body);
+
   if (!name || !category) {
     return res
       .status(400)
@@ -120,11 +124,21 @@ export const createComponent = async (req, res) => {
   }
 
   try {
+    let imageUrl = null;
+    if (req.file) {
+      const { buffer, originalname, mimetype } = req.file;
+      if (!mimetype.startsWith("image/")) {
+        return res.status(400).json({ error: "Only image files are allowed." });
+      }
+
+      imageUrl = await uploadCompressedImage(buffer, originalname, mimetype);
+    }
+
     const componentResult = await sql(
-      `INSERT INTO component (name, category, comment, description)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO component (name, category, comment, description,image)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
-      [name, category, comment, description]
+      [name, category, comment, description, imageUrl]
     );
 
     const componentId = componentResult[0]?.id;
@@ -147,6 +161,7 @@ export const createComponent = async (req, res) => {
     res.status(201).json({
       message: "Component created successfully.",
       componentId,
+      imageUrl,
     });
   } catch (error) {
     console.error("Error creating component:", error.message);
@@ -158,6 +173,7 @@ export const createComponent = async (req, res) => {
 
 export const updateComponent = async (req, res) => {
   const { category, id } = req.params;
+
   const {
     name,
     comment = "",
@@ -177,40 +193,76 @@ export const updateComponent = async (req, res) => {
   }
 
   try {
-    const componentResult = await sql(
-      `UPDATE component
-       SET name = $1, category = $2, comment = $3, description = $4
-       WHERE id = $5
-       RETURNING id`,
-      [name, category, comment, description, id]
-    );
+    let imageUrl;
+    if (req.file) {
+      imageUrl = await uploadCompressedImage(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+    }
+
+    const updateQuery = imageUrl
+      ? `UPDATE component
+         SET name = $1, category = $2, comment = $3, description = $4, image = $5
+         WHERE id = $6
+         RETURNING id`
+      : `UPDATE component
+         SET name = $1, category = $2, comment = $3, description = $4
+         WHERE id = $5
+         RETURNING id`;
+
+    const updateParams = imageUrl
+      ? [name, category, comment, description, imageUrl, id]
+      : [name, category, comment, description, id];
+
+    const componentResult = await sql(updateQuery, updateParams);
 
     if (componentResult.length === 0) {
       return res.status(404).json({ error: "Component not found." });
     }
 
-    await sql(
-      `UPDATE statuses
-       SET figma = $1, guidelines = $2, cdn = $3, storybook = $4
-       WHERE comp_id = $5`,
-      [figma, guidelines, cdn, storybook, id]
-    );
+    // 👉 Statuses
+    const [status] = await sql(`SELECT * FROM statuses WHERE comp_id = $1`, [
+      id,
+    ]);
+    if (status) {
+      await sql(
+        `UPDATE statuses SET figma = $1, guidelines = $2, cdn = $3, storybook = $4 WHERE comp_id = $5`,
+        [figma, guidelines, cdn, storybook, id]
+      );
+    } else {
+      await sql(
+        `INSERT INTO statuses (comp_id, figma, guidelines, cdn, storybook) VALUES ($1, $2, $3, $4, $5)`,
+        [id, figma, guidelines, cdn, storybook]
+      );
+    }
 
-    await sql(
-      `UPDATE platform_links
-       SET figma = $1, storybook = $2
-       WHERE comp_id = $3`,
-      [figmaLink, storybookLink, id]
+    // 👉 Platform Links
+    const [links] = await sql(
+      `SELECT * FROM platform_links WHERE comp_id = $1`,
+      [id]
     );
+    if (links) {
+      await sql(
+        `UPDATE platform_links SET figma = $1, storybook = $2 WHERE comp_id = $3`,
+        [figmaLink, storybookLink, id]
+      );
+    } else {
+      await sql(
+        `INSERT INTO platform_links (comp_id, figma, storybook) VALUES ($1, $2, $3)`,
+        [id, figmaLink, storybookLink]
+      );
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Component, statuses, and platform links updated successfully.",
     });
   } catch (error) {
-    console.error("Error updating component:", error.message);
-    res
-      .status(500)
-      .json({ error: "An error occurred while updating the component." });
+    console.error("Error updating component:", error);
+    return res.status(500).json({
+      error: "An error occurred while updating the component.",
+    });
   }
 };
 
