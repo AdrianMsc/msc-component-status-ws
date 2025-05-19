@@ -13,7 +13,20 @@ const s3 = new S3Client({
   },
 });
 
-export const uploadCompressedImage = async (buffer, filename, mimetype) => {
+/**
+ * Sube una imagen comprimida a S3.
+ * @param {Buffer} buffer - Imagen en buffer.
+ * @param {string} filename - Nombre original del archivo.
+ * @param {string} mimetype - Tipo MIME del archivo.
+ * @param {string|null} existingKey - (opcional) Si se proporciona, sobrescribe la imagen con este key.
+ * @returns {Promise<string>} - URL pública de la imagen en S3.
+ */
+export const uploadCompressedImage = async (
+  buffer,
+  filename,
+  mimetype,
+  existingKey = null
+) => {
   if (!process.env.AWS_S3_BUCKET_NAME) {
     throw new Error("No S3 bucket defined in environment variables");
   }
@@ -23,7 +36,8 @@ export const uploadCompressedImage = async (buffer, filename, mimetype) => {
     .toFormat("jpeg", { quality: 80 })
     .toBuffer();
 
-  const key = `components/${uuidv4()}-${filename.replace(/\s+/g, "_")}`;
+  const key =
+    existingKey || `components/${uuidv4()}-${filename.replace(/\s+/g, "_")}`;
 
   const uploadCommand = new PutObjectCommand({
     Bucket: process.env.AWS_S3_BUCKET_NAME,
