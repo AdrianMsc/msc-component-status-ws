@@ -1,4 +1,5 @@
 import sql from "../config/db.js";
+import { uploadCompressedImage } from "../services/s3Service.js";
 
 export const handshake = async (_, res) => {
   await res.json("👍");
@@ -113,6 +114,9 @@ export const createComponent = async (req, res) => {
     storybookLink = "",
   } = req.body;
 
+  // console.log("req.params:", req.params);
+  // console.log("req.body:", req.body);
+
   if (!name || !category) {
     return res
       .status(400)
@@ -120,11 +124,27 @@ export const createComponent = async (req, res) => {
   }
 
   try {
+    // let imageUrl = null;
+    // if (req.file) {
+    //   const { buffer, originalname, mimetype } = req.file;
+    //   if (!mimetype.startsWith("image/")) {
+    //     return res.status(400).json({ error: "Only image files are allowed." });
+    //   }
+
+    //   imageUrl = await uploadCompressedImage(buffer, originalname, mimetype);
+    // }
+
     const componentResult = await sql(
       `INSERT INTO component (name, category, comment, description)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [name, category, comment, description]
+      [
+        name,
+        category,
+        comment,
+        description,
+        // imageUrl
+      ]
     );
 
     const componentId = componentResult[0]?.id;
@@ -147,6 +167,7 @@ export const createComponent = async (req, res) => {
     res.status(201).json({
       message: "Component created successfully.",
       componentId,
+      imageUrl,
     });
   } catch (error) {
     console.error("Error creating component:", error.message);
