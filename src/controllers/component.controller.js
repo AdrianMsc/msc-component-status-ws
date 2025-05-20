@@ -200,18 +200,18 @@ export const updateComponent = async (req, res) => {
     let imageKey;
 
     if (req.file) {
-      // Verificamos si ya existe una imagen previa
+      // Verify if there is an existing image
       const [existingComponent] = await sql`
         SELECT image FROM component WHERE id = ${id}
       `;
       const previousKey = existingComponent?.image;
 
       if (previousKey) {
-        // 👉 Sobreescribimos la imagen existente
+        // 👉 Overwrite the existing image
         await overwriteImage(req.file.buffer, previousKey);
         imageKey = previousKey;
       } else {
-        // 👉 No había imagen previa, se sube como nueva y se guarda el key
+        // 👉 There wasn't any previous image
         imageKey = await uploadCompressedImage(
           req.file.buffer,
           req.file.originalname
@@ -239,7 +239,6 @@ export const updateComponent = async (req, res) => {
       return res.status(404).json({ error: "Component not found." });
     }
 
-    // 👉 Actualización de statuses
     const [status] = await sql`SELECT * FROM statuses WHERE comp_id = ${id}`;
     if (status) {
       await sql`
@@ -253,7 +252,6 @@ export const updateComponent = async (req, res) => {
       `;
     }
 
-    // 👉 Actualización de platform_links
     const [links] =
       await sql`SELECT * FROM platform_links WHERE comp_id = ${id}`;
     if (links) {
@@ -307,7 +305,6 @@ export const updateComponentResources = async (req, res) => {
       statusUpdated = true;
     }
 
-    // Actualiza solo si se mandan campos de links
     if (figmaLink !== undefined || storybookLink !== undefined) {
       await sql(
         `UPDATE platform_links 
@@ -343,7 +340,6 @@ export const deleteComponent = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // 1. Obtener el componente para acceder a la URL de la imagen
     const [component] = await sql`
       SELECT image_url FROM component WHERE id = ${id}
     `;
@@ -352,11 +348,9 @@ export const deleteComponent = async (req, res) => {
       return res.status(404).json({ message: "Component not found." });
     }
 
-    // 2. Extraer el key de la URL completa
     const imageUrl = component.image_url;
-    const s3Key = imageUrl.split(".amazonaws.com/")[1]; // todo después del dominio
+    const s3Key = imageUrl.split(".amazonaws.com/")[1];
 
-    // 3. Borrar la imagen en S3 (manejar si falla, pero no detener el borrado de BD)
     try {
       if (s3Key) {
         await deleteImageFromS3(s3Key);
@@ -365,7 +359,6 @@ export const deleteComponent = async (req, res) => {
       console.warn("Failed to delete image from S3:", s3Err.message);
     }
 
-    // 4. Borrar el componente y sus relaciones
     const result = await sql`
       WITH deleted_component AS (
         DELETE FROM component WHERE id = ${id} RETURNING id
