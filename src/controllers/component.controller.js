@@ -1,5 +1,9 @@
 import sql from "../config/db.js";
-import { uploadCompressedImage } from "../services/s3Service.js";
+import {
+  deleteImageFromS3,
+  uploadCompressedImage,
+  overwriteImage,
+} from "../services/s3Service.js";
 
 export const handshake = async (_, res) => {
   await res.json("👍");
@@ -193,16 +197,29 @@ export const updateComponent = async (req, res) => {
   }
 
   try {
-    let imageUrl;
+    let imageKey;
+
     if (req.file) {
-      imageUrl = await uploadCompressedImage(
-        req.file.buffer,
-        req.file.originalname,
-        req.file.mimetype
-      );
+      // Verificamos si ya existe una imagen previa
+      const [existingComponent] = await sql`
+        SELECT image FROM component WHERE id = ${id}
+      `;
+      const previousKey = existingComponent?.image;
+
+      if (previousKey) {
+        // 👉 Sobreescribimos la imagen existente
+        await overwriteImage(req.file.buffer, previousKey);
+        imageKey = previousKey;
+      } else {
+        // 👉 No había imagen previa, se sube como nueva y se guarda el key
+        imageKey = await uploadCompressedImage(
+          req.file.buffer,
+          req.file.originalname
+        );
+      }
     }
 
-    const updateQuery = imageUrl
+    const updateQuery = imageKey
       ? `UPDATE component
          SET name = $1, category = $2, comment = $3, description = $4, image = $5
          WHERE id = $6
@@ -212,8 +229,8 @@ export const updateComponent = async (req, res) => {
          WHERE id = $5
          RETURNING id`;
 
-    const updateParams = imageUrl
-      ? [name, category, comment, description, imageUrl, id]
+    const updateParams = imageKey
+      ? [name, category, comment, description, imageKey, id]
       : [name, category, comment, description, id];
 
     const componentResult = await sql(updateQuery, updateParams);
@@ -222,37 +239,33 @@ export const updateComponent = async (req, res) => {
       return res.status(404).json({ error: "Component not found." });
     }
 
-    // 👉 Statuses
-    const [status] = await sql(`SELECT * FROM statuses WHERE comp_id = $1`, [
-      id,
-    ]);
+    // 👉 Actualización de statuses
+    const [status] = await sql`SELECT * FROM statuses WHERE comp_id = ${id}`;
     if (status) {
-      await sql(
-        `UPDATE statuses SET figma = $1, guidelines = $2, cdn = $3, storybook = $4 WHERE comp_id = $5`,
-        [figma, guidelines, cdn, storybook, id]
-      );
+      await sql`
+        UPDATE statuses SET figma = ${figma}, guidelines = ${guidelines}, cdn = ${cdn}, storybook = ${storybook}
+        WHERE comp_id = ${id}
+      `;
     } else {
-      await sql(
-        `INSERT INTO statuses (comp_id, figma, guidelines, cdn, storybook) VALUES ($1, $2, $3, $4, $5)`,
-        [id, figma, guidelines, cdn, storybook]
-      );
+      await sql`
+        INSERT INTO statuses (comp_id, figma, guidelines, cdn, storybook)
+        VALUES (${id}, ${figma}, ${guidelines}, ${cdn}, ${storybook})
+      `;
     }
 
-    // 👉 Platform Links
-    const [links] = await sql(
-      `SELECT * FROM platform_links WHERE comp_id = $1`,
-      [id]
-    );
+    // 👉 Actualización de platform_links
+    const [links] =
+      await sql`SELECT * FROM platform_links WHERE comp_id = ${id}`;
     if (links) {
-      await sql(
-        `UPDATE platform_links SET figma = $1, storybook = $2 WHERE comp_id = $3`,
-        [figmaLink, storybookLink, id]
-      );
+      await sql`
+        UPDATE platform_links SET figma = ${figmaLink}, storybook = ${storybookLink}
+        WHERE comp_id = ${id}
+      `;
     } else {
-      await sql(
-        `INSERT INTO platform_links (comp_id, figma, storybook) VALUES ($1, $2, $3)`,
-        [id, figmaLink, storybookLink]
-      );
+      await sql`
+        INSERT INTO platform_links (comp_id, figma, storybook)
+        VALUES (${id}, ${figmaLink}, ${storybookLink})
+      `;
     }
 
     return res.status(200).json({
@@ -328,21 +341,47 @@ export const updateComponentResources = async (req, res) => {
 
 export const deleteComponent = async (req, res) => {
   const { id } = req.params;
+
   try {
+    // 1. Obtener el componente para acceder a la URL de la imagen
+    const [component] = await sql`
+      SELECT image_url FROM component WHERE id = ${id}
+    `;
+
+    if (!component) {
+      return res.status(404).json({ message: "Component not found." });
+    }
+
+    // 2. Extraer el key de la URL completa
+    const imageUrl = component.image_url;
+    const s3Key = imageUrl.split(".amazonaws.com/")[1]; // todo después del dominio
+
+    // 3. Borrar la imagen en S3 (manejar si falla, pero no detener el borrado de BD)
+    try {
+      if (s3Key) {
+        await deleteImageFromS3(s3Key);
+      }
+    } catch (s3Err) {
+      console.warn("Failed to delete image from S3:", s3Err.message);
+    }
+
+    // 4. Borrar el componente y sus relaciones
     const result = await sql`
       WITH deleted_component AS (
         DELETE FROM component WHERE id = ${id} RETURNING id
       )
       DELETE FROM statuses WHERE comp_id IN (SELECT id FROM deleted_component);
     `;
-    if (result.rowCount === 0)
-      return res
-        .status(404)
-        .json({ message: "Component not found or could not be erased." });
 
-    res
-      .status(200)
-      .json({ message: "Component and related records erased successfully." });
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        message: "Component not found or could not be erased.",
+      });
+    }
+
+    res.status(200).json({
+      message: "Component, related records, and image erased successfully.",
+    });
   } catch (err) {
     console.error("Error erasing component:", err);
     res.status(500).json({ message: "Error erasing component." });
