@@ -341,7 +341,7 @@ export const deleteComponent = async (req, res) => {
 
   try {
     const [component] = await sql`
-      SELECT image_url FROM component WHERE id = ${id}
+      SELECT image FROM component WHERE id = ${id}
     `;
 
     if (!component) {
