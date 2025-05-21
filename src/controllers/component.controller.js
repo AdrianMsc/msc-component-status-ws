@@ -118,10 +118,7 @@ export const createComponent = async (req, res) => {
     storybookLink = "",
   } = req.body;
 
-  console.log("req.params:", req.params);
-  console.log("req.body:", req.body);
-
-  if (!name || !category) {
+  if (!name?.trim() || !category?.trim()) {
     return res
       .status(400)
       .json({ error: "Required fields: name and category." });
@@ -129,17 +126,24 @@ export const createComponent = async (req, res) => {
 
   try {
     let imageUrl = null;
+
     if (req.file) {
-      const { buffer, originalname, mimetype } = req.file;
+      const { buffer, mimetype, size } = req.file;
+
       if (!mimetype.startsWith("image/")) {
         return res.status(400).json({ error: "Only image files are allowed." });
       }
 
-      imageUrl = await uploadCompressedImage(buffer, originalname, mimetype);
+      const maxSize = 5 * 1024 * 1024;
+      if (size > maxSize) {
+        return res.status(400).json({ error: "Image size exceeds 5MB." });
+      }
+
+      imageUrl = await uploadCompressedImage(buffer, name);
     }
 
     const componentResult = await sql(
-      `INSERT INTO component (name, category, comment, description,image)
+      `INSERT INTO component (name, category, comment, description, image)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
       [name, category, comment, description, imageUrl]
@@ -196,26 +200,46 @@ export const updateComponent = async (req, res) => {
       .json({ error: "Required fields: name, category, and id." });
   }
 
+  // Helper para extraer el key real desde la URL completa
+  const extractS3KeyFromUrl = (url) => {
+    try {
+      const urlObj = new URL(url);
+      return decodeURIComponent(urlObj.pathname).replace(/^\/+/, "");
+    } catch (err) {
+      console.error("Invalid S3 URL format:", url);
+      return null;
+    }
+  };
+
   try {
     let imageKey;
 
     if (req.file) {
-      // Verify if there is an existing image
+      // Obtener imagen actual (puede ser una URL completa)
       const [existingComponent] = await sql`
         SELECT image FROM component WHERE id = ${id}
       `;
-      const previousKey = existingComponent?.image;
+      const previousUrl = existingComponent?.image;
 
-      if (previousKey) {
-        // 👉 Overwrite the existing image
-        await overwriteImage(req.file.buffer, previousKey);
-        imageKey = previousKey;
+      if (previousUrl) {
+        const actualKey = extractS3KeyFromUrl(previousUrl);
+
+        if (!actualKey) {
+          return res
+            .status(400)
+            .json({ error: "Existing image URL format is invalid." });
+        }
+
+        // 👉 Sobrescribir la imagen actual con el key limpio
+        await overwriteImage(req.file.buffer, actualKey);
+        imageKey = previousUrl; // seguimos usando la URL completa
       } else {
-        // 👉 There wasn't any previous image
-        imageKey = await uploadCompressedImage(
+        // 👉 No había imagen previa, subimos una nueva
+        const newKey = await uploadCompressedImage(
           req.file.buffer,
           req.file.originalname
         );
+        imageKey = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
       }
     }
 
@@ -348,7 +372,9 @@ export const deleteComponent = async (req, res) => {
       return res.status(404).json({ message: "Component not found." });
     }
 
-    const imageUrl = component.image_url;
+    console.log(component);
+
+    const imageUrl = component.image;
     const s3Key = imageUrl.split(".amazonaws.com/")[1];
 
     try {

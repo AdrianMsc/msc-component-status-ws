@@ -4,8 +4,8 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import sharp from "sharp";
-import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
+import { nanoid } from "nanoid";
 
 dotenv.config();
 
@@ -17,23 +17,29 @@ const s3 = new S3Client({
   },
 });
 
-export const uploadCompressedImage = async (buffer, filename) => {
+export const uploadCompressedImage = async (buffer, componentName) => {
   if (!process.env.AWS_S3_BUCKET_NAME) {
     throw new Error("No S3 bucket defined in environment variables");
   }
 
   const compressedBuffer = await sharp(buffer)
     .resize({ width: 1024 })
-    .toFormat("jpeg", { quality: 80 })
+    .toFormat("webp", { quality: 80 })
     .toBuffer();
 
-  const key = `components/${uuidv4()}-${filename.replace(/\s+/g, "_")}`;
+  const shortId = nanoid(8);
+  const sanitizedComponentName = componentName
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/gi, "");
+
+  const key = `components/msc-${sanitizedComponentName}-${shortId}.webp`;
 
   const uploadCommand = new PutObjectCommand({
     Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: key,
     Body: compressedBuffer,
-    ContentType: "image/jpeg",
+    ContentType: "image/webp",
   });
 
   await s3.send(uploadCommand);
@@ -47,20 +53,19 @@ export const overwriteImage = async (buffer, key) => {
   }
 
   const compressedBuffer = await sharp(buffer)
-    .resize({ width: 1024 }) // puedes ajustar el tamaño si lo deseas
-    .toFormat("jpeg", { quality: 80 }) // también puedes ajustar la calidad
+    .resize({ width: 1024 })
+    .toFormat("webp", { quality: 80 })
     .toBuffer();
 
   const uploadCommand = new PutObjectCommand({
     Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: key,
     Body: compressedBuffer,
-    ContentType: "image/jpeg",
+    ContentType: "image/webp",
   });
 
   await s3.send(uploadCommand);
 
-  // Devolvemos la URL para confirmación o log (opcional)
   return `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 };
 
