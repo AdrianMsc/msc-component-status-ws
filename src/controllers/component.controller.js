@@ -4,6 +4,7 @@ import {
   uploadCompressedImage,
   overwriteImage,
 } from "../services/s3Service.js";
+import { extractS3KeyFromUrl } from "../utils/s3Helpers.js";
 
 export const handshake = async (_, res) => {
   await res.json("👍");
@@ -200,22 +201,10 @@ export const updateComponent = async (req, res) => {
       .json({ error: "Required fields: name, category, and id." });
   }
 
-  // Helper para extraer el key real desde la URL completa
-  const extractS3KeyFromUrl = (url) => {
-    try {
-      const urlObj = new URL(url);
-      return decodeURIComponent(urlObj.pathname).replace(/^\/+/, "");
-    } catch (err) {
-      console.error("Invalid S3 URL format:", url);
-      return null;
-    }
-  };
-
   try {
     let imageKey;
 
     if (req.file) {
-      // Obtener imagen actual (puede ser una URL completa)
       const [existingComponent] = await sql`
         SELECT image FROM component WHERE id = ${id}
       `;
@@ -223,23 +212,10 @@ export const updateComponent = async (req, res) => {
 
       if (previousUrl) {
         const actualKey = extractS3KeyFromUrl(previousUrl);
-
-        if (!actualKey) {
-          return res
-            .status(400)
-            .json({ error: "Existing image URL format is invalid." });
-        }
-
-        // 👉 Sobrescribir la imagen actual con el key limpio
         await overwriteImage(req.file.buffer, actualKey);
         imageKey = previousUrl; // seguimos usando la URL completa
       } else {
-        // 👉 No había imagen previa, subimos una nueva
-        const newKey = await uploadCompressedImage(
-          req.file.buffer,
-          req.file.originalname
-        );
-        imageKey = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
+        imageKey = await uploadCompressedImage(req.file.buffer, name);
       }
     }
 
@@ -372,17 +348,17 @@ export const deleteComponent = async (req, res) => {
       return res.status(404).json({ message: "Component not found." });
     }
 
-    console.log(component);
-
     const imageUrl = component.image;
-    const s3Key = imageUrl.split(".amazonaws.com/")[1];
 
-    try {
-      if (s3Key) {
-        await deleteImageFromS3(s3Key);
+    if (imageUrl) {
+      try {
+        const s3Key = imageUrl.split(".amazonaws.com/")[1];
+        if (s3Key) {
+          await deleteImageFromS3(s3Key);
+        }
+      } catch (s3Err) {
+        console.warn("Failed to delete image from S3:", s3Err.message);
       }
-    } catch (s3Err) {
-      console.warn("Failed to delete image from S3:", s3Err.message);
     }
 
     const result = await sql`
@@ -392,7 +368,7 @@ export const deleteComponent = async (req, res) => {
       DELETE FROM statuses WHERE comp_id IN (SELECT id FROM deleted_component);
     `;
 
-    if (result.rowCount === 0) {
+    if (result.count === 0 && result.rowCount === 0) {
       return res.status(404).json({
         message: "Component not found or could not be erased.",
       });
