@@ -185,14 +185,14 @@ export const updateComponent = async (req, res) => {
 
   const {
     name,
-    comment = "",
-    description = "",
-    figma = "",
-    guidelines = "",
-    cdn = "",
-    storybook = "",
-    figmaLink = "",
-    storybookLink = "",
+    comment,
+    description,
+    figma,
+    guidelines,
+    cdn,
+    storybook,
+    figmaLink,
+    storybookLink,
   } = req.body;
 
   if (!name || !category || !id) {
@@ -213,7 +213,7 @@ export const updateComponent = async (req, res) => {
       if (previousUrl) {
         const actualKey = extractS3KeyFromUrl(previousUrl);
         await overwriteImage(req.file.buffer, actualKey);
-        imageKey = previousUrl; // seguimos usando la URL completa
+        imageKey = previousUrl;
       } else {
         imageKey = await uploadCompressedImage(req.file.buffer, name);
       }
