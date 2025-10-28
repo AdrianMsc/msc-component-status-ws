@@ -174,14 +174,14 @@ curl -X POST "http://localhost:4242/categories/Foundations/components" \
   "name": "Ada Lovelace",
   "email": "ada@example.com",
   "message": "Great DS!",
-  "status": "pending", // opcional
-  "read": false // opcional
+  "status": "pending", // optional
+  "read": false // optional
 }
 ```
 
-  - Responses:
-    - 201: `{ "success": true, "message": "Message successfully added!", "data": { ... } }`
-    - 400: `{ "success": false, "error": "Name, email, and message are required." }`
+- Responses:
+  - 201: `{ "success": true, "message": "Message successfully added!", "data": { ... } }`
+  - 400: `{ "success": false, "error": "Name, email, and message are required." }`
 
 - **DELETE** `/message/:id`
   - Responses:
@@ -203,4 +203,3 @@ curl -X POST "http://localhost:4242/categories/Foundations/components" \
 - 429 Too Many Requests: rate limiter exceeded (100/15min)
 - 400 errors: validate required fields and types (e.g., invalid image or >5MB)
 - 500 errors: check server logs and configuration for `DATABASE_URL` and AWS credentials
-
