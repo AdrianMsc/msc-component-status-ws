@@ -45,6 +45,7 @@ export const getAllComponents = async (_, res) => {
           c.image AS component_image,
           c.created_at AS component_creation,
           c.updated_at AS component_update,
+          c.atomic_type AS component_atomic_type,
           pl.figma AS figma_link,
           pl.storybook AS storybook_link,
           s.guidelines AS component_guidelines,  
@@ -113,6 +114,7 @@ export const createComponent = async (req, res) => {
     name,
     comment = "",
     description = "",
+    atomicType = "",
     figma = "",
     figmaLink = "",
     guidelines = "",
@@ -146,10 +148,10 @@ export const createComponent = async (req, res) => {
     }
 
     const componentResult = await sql(
-      `INSERT INTO component (name, category, comment, description, image)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO component (name, category, comment, description, image, atomic_type)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [name, category, comment, description, imageUrl]
+      [name, category, comment, description, imageUrl, atomicType]
     );
 
     const componentId = componentResult[0]?.id;
@@ -189,6 +191,7 @@ export const updateComponent = async (req, res) => {
     name,
     comment,
     description,
+    atomicType,
     figma,
     guidelines,
     cdn,
@@ -223,17 +226,17 @@ export const updateComponent = async (req, res) => {
 
     const updateQuery = imageKey
       ? `UPDATE component
-         SET name = $1, category = $2, comment = $3, description = $4, image = $5
-         WHERE id = $6
+         SET name = $1, category = $2, comment = $3, description = $4, image = $5, atomic_type = $6
+         WHERE id = $7
          RETURNING id`
       : `UPDATE component
-         SET name = $1, category = $2, comment = $3, description = $4
-         WHERE id = $5
+         SET name = $1, category = $2, comment = $3, description = $4, atomic_type = $5
+         WHERE id = $6
          RETURNING id`;
 
     const updateParams = imageKey
-      ? [name, category, comment, description, imageKey, id]
-      : [name, category, comment, description, id];
+      ? [name, category, comment, description, imageKey, atomicType, id]
+      : [name, category, comment, description, atomicType, id];
 
     const componentResult = await sql(updateQuery, updateParams);
 
