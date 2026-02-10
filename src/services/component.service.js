@@ -1,10 +1,4 @@
 import * as ComponentModel from "../models/component.model.js";
-import {
-  deleteImageFromS3,
-  uploadCompressedImage,
-  overwriteImage,
-} from "./s3Service.js";
-import { extractS3KeyFromUrl } from "../utils/s3Helpers.js";
 
 export const getComponentNames = async () => {
   return await ComponentModel.getAllNames();
@@ -54,27 +48,10 @@ export const getFormattedComponents = async () => {
   }, []);
 };
 
-export const createNewComponent = async (data, file) => {
-  let imageUrl = null;
-
-  if (file) {
-    const { buffer, mimetype, size } = file;
-
-    if (!mimetype.startsWith("image/")) {
-      throw new Error("Only image files are allowed.");
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    if (size > maxSize) {
-      throw new Error("Image size exceeds 5MB.");
-    }
-
-    imageUrl = await uploadCompressedImage(buffer, data.name);
-  }
-
+export const createNewComponent = async (data) => {
   const componentId = await ComponentModel.create({
     ...data,
-    imageUrl,
+    imageUrl: null,
   });
 
   if (!componentId) {
@@ -91,28 +68,12 @@ export const createNewComponent = async (data, file) => {
     ...data,
   });
 
-  return { componentId, imageUrl };
+  return { componentId };
 };
 
-export const modifyComponent = async (id, data, file) => {
-  let imageKey;
-
-  if (file) {
-    const existingComponent = await ComponentModel.findById(id);
-    const previousUrl = existingComponent?.image;
-
-    if (previousUrl) {
-      const actualKey = extractS3KeyFromUrl(previousUrl);
-      await overwriteImage(file.buffer, actualKey);
-      imageKey = previousUrl;
-    } else {
-      imageKey = await uploadCompressedImage(file.buffer, data.name);
-    }
-  }
-
+export const modifyComponent = async (id, data) => {
   const updated = await ComponentModel.update(id, {
     ...data,
-    image: imageKey,
   });
 
   if (!updated) {
@@ -165,26 +126,13 @@ export const removeComponent = async (id) => {
     throw new Error("Component not found.");
   }
 
-  const imageUrl = component.image;
-
-  if (imageUrl) {
-    try {
-      const s3Key = imageUrl.split(".amazonaws.com/")[1];
-      if (s3Key) {
-        await deleteImageFromS3(s3Key);
-      }
-    } catch (s3Err) {
-      console.warn("Failed to delete image from S3:", s3Err.message);
-    }
-  }
-
   const result = await ComponentModel.deleteById(id);
-  
+
   // Original logic check: if (result.count === 0 && result.rowCount === 0)
   // We'll mimic this behavior, assuming the driver returns one of these properties.
   const count = result.count !== undefined ? result.count : result.rowCount;
-  
+
   if (count === 0) {
-     throw new Error("Component not found or could not be erased.");
+    throw new Error("Component not found or could not be erased.");
   }
 };

@@ -53,7 +53,7 @@ export const create = async ({
     `INSERT INTO component (name, category, comment, description, image, atomic_type)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-    [name, category, comment, description, imageUrl, atomicType]
+    [name, category, comment, description, imageUrl, atomicType],
   );
   return result[0]?.id;
 };
@@ -68,7 +68,7 @@ export const createStatuses = async ({
   await sql(
     `INSERT INTO statuses (comp_id, figma, guidelines, cdn, storybook)
        VALUES ($1, $2, $3, $4, $5)`,
-    [componentId, figma, guidelines, cdn, storybook]
+    [componentId, figma, guidelines, cdn, storybook],
   );
 };
 
@@ -80,7 +80,7 @@ export const createPlatformLinks = async ({
   await sql(
     `INSERT INTO platform_links (comp_id, figma, storybook)
        VALUES ($1, $2, $3)`,
-    [componentId, figmaLink, storybookLink]
+    [componentId, figmaLink, storybookLink],
   );
 };
 
@@ -93,9 +93,10 @@ export const findById = async (id) => {
 
 export const update = async (
   id,
-  { name, category, comment, description, image, atomicType }
+  { name, category, comment, description, image, atomicType },
 ) => {
-  const updateQuery = image
+  const shouldUpdateImage = image !== undefined;
+  const updateQuery = shouldUpdateImage
     ? `UPDATE component
          SET name = $1, category = $2, comment = $3, description = $4, image = $5, atomic_type = $6
          WHERE id = $7
@@ -105,7 +106,7 @@ export const update = async (
          WHERE id = $6
          RETURNING id`;
 
-  const updateParams = image
+  const updateParams = shouldUpdateImage
     ? [name, category, comment, description, image, atomicType, id]
     : [name, category, comment, description, atomicType, id];
 
@@ -115,7 +116,7 @@ export const update = async (
 
 export const upsertStatuses = async (
   id,
-  { figma, guidelines, cdn, storybook }
+  { figma, guidelines, cdn, storybook },
 ) => {
   const [status] = await sql`SELECT * FROM statuses WHERE comp_id = ${id}`;
   if (status) {
@@ -148,7 +149,7 @@ export const upsertPlatformLinks = async (id, { figmaLink, storybookLink }) => {
 
 export const updateStatusFields = async (
   id,
-  { figma, guidelines, cdn, storybook }
+  { figma, guidelines, cdn, storybook },
 ) => {
   await sql(
     `UPDATE statuses 
@@ -158,13 +159,13 @@ export const updateStatusFields = async (
           cdn = COALESCE($3, cdn),
           storybook = COALESCE($4, storybook)
          WHERE comp_id = $5`,
-    [figma, guidelines, cdn, storybook, id]
+    [figma, guidelines, cdn, storybook, id],
   );
 };
 
 export const updatePlatformLinkFields = async (
   id,
-  { figmaLink, storybookLink }
+  { figmaLink, storybookLink },
 ) => {
   await sql(
     `UPDATE platform_links 
@@ -172,7 +173,7 @@ export const updatePlatformLinkFields = async (
           figma = COALESCE($1, figma),
           storybook = COALESCE($2, storybook)
          WHERE comp_id = $3`,
-    [figmaLink, storybookLink, id]
+    [figmaLink, storybookLink, id],
   );
 };
 

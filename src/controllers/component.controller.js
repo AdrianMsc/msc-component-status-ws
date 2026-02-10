@@ -45,23 +45,16 @@ export const createComponent = async (req, res) => {
   }
 
   try {
-    const { componentId, imageUrl } = await ComponentService.createNewComponent(
-      { ...req.body, category },
-      req.file
-    );
+    const { componentId } = await ComponentService.createNewComponent({
+      ...req.body,
+      category,
+    });
 
     res.status(201).json({
       message: "Component created successfully.",
       componentId,
-      imageUrl,
     });
   } catch (error) {
-    if (
-      error.message === "Only image files are allowed." ||
-      error.message === "Image size exceeds 5MB."
-    ) {
-      return res.status(400).json({ error: error.message });
-    }
     console.error("Error creating component:", error.message);
     res.status(500).json({
       error: "An error occurred while creating the component.",
@@ -80,11 +73,7 @@ export const updateComponent = async (req, res) => {
   }
 
   try {
-    await ComponentService.modifyComponent(
-      id,
-      { ...req.body, category },
-      req.file
-    );
+    await ComponentService.modifyComponent(id, { ...req.body, category });
 
     return res.status(200).json({
       message: "Component, statuses, and platform links updated successfully.",
