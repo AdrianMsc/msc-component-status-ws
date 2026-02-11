@@ -114,6 +114,18 @@ export const update = async (
   return result.length > 0;
 };
 
+export const updateImageById = async (id, imageUrl) => {
+  const normalizedId = Number(id);
+  const result = await sql(
+    `UPDATE component
+         SET image = $1
+         WHERE id = $2
+         RETURNING id`,
+    [imageUrl, normalizedId],
+  );
+  return result.length > 0;
+};
+
 export const upsertStatuses = async (
   id,
   { figma, guidelines, cdn, storybook },

@@ -1,4 +1,5 @@
 import * as ComponentModel from "../models/component.model.js";
+import { del, put } from "@vercel/blob";
 
 export const getComponentNames = async () => {
   return await ComponentModel.getAllNames();
@@ -68,10 +69,24 @@ export const createNewComponent = async (data) => {
     ...data,
   });
 
+  if (data?.imageFile) {
+    const extension = data.imageFile.originalname?.split(".").pop();
+    const pathname = `components/${componentId}/${Date.now()}${extension ? `.${extension}` : ""}`;
+
+    const blob = await put(pathname, data.imageFile.buffer, {
+      access: "public",
+      contentType: data.imageFile.mimetype,
+    });
+
+    await ComponentModel.updateImageById(componentId, blob.url);
+  }
+
   return { componentId };
 };
 
 export const modifyComponent = async (id, data) => {
+  const existing = await ComponentModel.findById(id);
+
   const updated = await ComponentModel.update(id, {
     ...data,
   });
@@ -82,6 +97,29 @@ export const modifyComponent = async (id, data) => {
 
   await ComponentModel.upsertStatuses(id, data);
   await ComponentModel.upsertPlatformLinks(id, data);
+
+  if (data?.imageFile) {
+    const extension = data.imageFile.originalname?.split(".").pop();
+    const pathname = `components/${id}/${Date.now()}${extension ? `.${extension}` : ""}`;
+
+    const blob = await put(pathname, data.imageFile.buffer, {
+      access: "public",
+      contentType: data.imageFile.mimetype,
+    });
+
+    const imageUpdated = await ComponentModel.updateImageById(id, blob.url);
+    if (!imageUpdated) {
+      throw new Error("Component image could not be updated in database.");
+    }
+
+    if (existing?.image) {
+      try {
+        await del(existing.image);
+      } catch (error) {
+        console.error("Error deleting previous blob:", error?.message ?? error);
+      }
+    }
+  }
 };
 
 export const updateResources = async (id, data) => {

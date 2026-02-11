@@ -6,6 +6,18 @@
 
 Backend API to manage Design System component status: components CRUD, platform/resources handling (Figma, Guidelines, CDN, Storybook), feedback inbox, and Neon Postgres database. Deployable on Vercel.
 
+## Resource model (Statuses & Links)
+
+Each component has:
+
+- **Statuses** (table `statuses`): `guidelines`, `figma`, `storybook`, `cdn`
+- **Platform links** (table `platform_links`): `figmaLink`, `storybookLink`
+
+Notes:
+
+- The API **does not validate** a strict enum for status values; they are stored as strings. The UI typically uses values like `"✅"`, `"construction"`, `"deprecated"`, etc.
+- There are currently **no dedicated link fields** for Guidelines/CDN. Only **Figma** and **Storybook** links are persisted.
+
 ## Architecture: Model-Service-Controller (MSC)
 
 This project follows the **Model-Service-Controller** architecture to ensure scalability and maintainability.
@@ -77,21 +89,27 @@ Fetches a list of just component names.
 Creates a new component.
 
 - **POST** `/categories/:category/components`
-- **Content-Type**: `application/json`
+- **Content-Type**: `multipart/form-data`
 - **Parameters**: `category` (URL param, e.g., `Foundations`)
 - **Body**:
   - `name` (required): "Button"
   - `description`: "Primary button"
-  - `atomicyType`: "atom"
+  - `atomicType`: "atom"
+  - `comment`: "Internal notes"
   - `figma`: "✅"
   - `guidelines`: "construction"
+  - `cdn`: "✅"
+  - `storybook`: "✅"
   - `figmaLink`: "https://figma.com/..."
+  - `storybookLink`: "https://your-storybook-url/..."
+  - `image`: (optional file) image to upload to Vercel Blob
 - **Example**:
 
 ```bash
 curl -X POST "http://localhost:4242/categories/Foundations/components" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Button","description":"Main CTA"}'
+  -F 'name=Button' \
+  -F 'description=Main CTA' \
+  -F 'image=@/path/to/image.png'
 ```
 
 #### Update Component
@@ -99,14 +117,41 @@ curl -X POST "http://localhost:4242/categories/Foundations/components" \
 Updates component details.
 
 - **PUT** `/categories/:category/components/:id`
-- **Content-Type**: `application/json`
+- **Content-Type**: `multipart/form-data`
 - **Body**: Same fields as Create.
 - **Example**:
 
 ```bash
 curl -X PUT "http://localhost:4242/categories/Foundations/components/1" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Button Updated"}'
+  -F 'name=Button Updated' \
+  -F 'image=@/path/to/new-image.png'
+```
+
+#### Upload Image (Vercel Blob)
+
+Uploads an image to Vercel Blob without creating a component.
+
+- **POST** `/uploads/images`
+- **Content-Type**: `multipart/form-data`
+- **Body**:
+  - `image` (required file)
+- **Response**:
+
+```json
+{
+  "message": "Image uploaded successfully.",
+  "url": "https://...",
+  "pathname": "uploads/....png",
+  "contentType": "image/png",
+  "size": 12345
+}
+```
+
+- **Example**:
+
+```bash
+curl -X POST "http://localhost:4242/uploads/images" \
+  -F 'image=@/path/to/image.png'
 ```
 
 #### Update Resources (Status/Links)
@@ -121,9 +166,34 @@ Partially updates just the status or link fields.
 {
   "figma": "✅",
   "storybook": "deprecated",
-  "figmaLink": "https://new-link.com"
+  "figmaLink": "https://new-link.com",
+  "storybookLink": "https://new-storybook-link.com"
 }
 ```
+
+### 4. Storybook guidelines
+
+This API tracks Storybook in two ways:
+
+- **Status**: `storybook` (in `statuses`)
+- **Link**: `storybookLink` (in `platform_links`)
+
+Recommended usage pattern:
+
+- If a component is implemented and documented in Storybook, set `storybook` to something like `"✅"` and provide `storybookLink`.
+- If it is planned/in progress, set `storybook` to `"construction"` (or your chosen convention) and omit `storybookLink`.
+- If it is no longer supported, set `storybook` to `"deprecated"` and optionally keep the last `storybookLink` for reference.
+
+### 5. CDN
+
+CDN tracking is currently **status-only** via the `cdn` field in `statuses`.
+
+Recommended usage pattern:
+
+- Use `cdn` to indicate whether the component/assets are published/available via your CDN.
+- If you need to store a CDN URL per component, the current schema does not include a `cdnLink` field; you can either:
+  - Add it to the database/schema in a future change, or
+  - Store the URL in `comment`/`description` temporarily (not recommended for long term).
 
 #### Delete Component
 
@@ -181,3 +251,37 @@ Deletes component and its related records.
 ## Environment variables
 
 - `DATABASE_URL` (Neon Postgres)
+- `BLOB_READ_WRITE_TOKEN` (Vercel Blob)
+
+## Postman: how to test image uploads
+
+Base URL: `http://localhost:4242`
+
+### Upload Image (Blob only)
+
+- **Method**: `POST`
+- **URL**: `{{baseUrl}}/uploads/images`
+- **Body**:
+  - Select `form-data`
+  - Add key `image`
+  - Change type to `File`
+  - Pick an image file
+
+### Create Component with image
+
+- **Method**: `POST`
+- **URL**: `{{baseUrl}}/categories/Foundations/components`
+- **Body**:
+  - Select `form-data`
+  - Add key `name` (Text)
+  - Optional keys like `description`, `comment`, `atomicType`, etc.
+  - Add key `image` (File)
+
+### Update Component with image
+
+- **Method**: `PUT`
+- **URL**: `{{baseUrl}}/categories/Foundations/components/:id`
+- **Body**:
+  - Select `form-data`
+  - Include `name` (Text)
+  - Add key `image` (File) to replace the current image

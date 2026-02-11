@@ -1,4 +1,5 @@
 import * as ComponentService from "../services/component.service.js";
+import { put } from "@vercel/blob";
 
 export const handshake = async (_, res) => {
   await res.json("👍");
@@ -48,6 +49,7 @@ export const createComponent = async (req, res) => {
     const { componentId } = await ComponentService.createNewComponent({
       ...req.body,
       category,
+      imageFile: req.file,
     });
 
     res.status(201).json({
@@ -73,7 +75,11 @@ export const updateComponent = async (req, res) => {
   }
 
   try {
-    await ComponentService.modifyComponent(id, { ...req.body, category });
+    await ComponentService.modifyComponent(id, {
+      ...req.body,
+      category,
+      imageFile: req.file,
+    });
 
     return res.status(200).json({
       message: "Component, statuses, and platform links updated successfully.",
@@ -111,6 +117,33 @@ export const updateComponentResources = async (req, res) => {
     }
     console.error("Error updating component resources:", error.message);
     res.status(500).json({ error: "Error updating component resources" });
+  }
+};
+
+export const uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Required field: image." });
+    }
+
+    const extension = req.file.originalname?.split(".").pop();
+    const pathname = `uploads/${Date.now()}${extension ? `.${extension}` : ""}`;
+
+    const blob = await put(pathname, req.file.buffer, {
+      access: "public",
+      contentType: req.file.mimetype,
+    });
+
+    return res.status(201).json({
+      message: "Image uploaded successfully.",
+      url: blob.url,
+      pathname: blob.pathname,
+      contentType: blob.contentType,
+      size: blob.size,
+    });
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    return res.status(500).json({ error: "Error uploading image." });
   }
 };
 
