@@ -1,5 +1,6 @@
 import * as ComponentService from "../services/component.service.js";
 import { put } from "@vercel/blob";
+import { convertImageBufferToWebp } from "../utils/imageToWebp.js";
 
 export const handshake = async (_, res) => {
   await res.json("👍");
@@ -126,12 +127,14 @@ export const uploadImage = async (req, res) => {
       return res.status(400).json({ error: "Required field: image." });
     }
 
-    const extension = req.file.originalname?.split(".").pop();
-    const pathname = `uploads/${Date.now()}${extension ? `.${extension}` : ""}`;
+    const { buffer, contentType, extension } = await convertImageBufferToWebp(
+      req.file.buffer,
+    );
+    const pathname = `uploads/${Date.now()}.${extension}`;
 
-    const blob = await put(pathname, req.file.buffer, {
+    const blob = await put(pathname, buffer, {
       access: "public",
-      contentType: req.file.mimetype,
+      contentType,
     });
 
     return res.status(201).json({

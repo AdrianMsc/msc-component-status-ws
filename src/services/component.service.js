@@ -1,5 +1,6 @@
 import * as ComponentModel from "../models/component.model.js";
 import { del, put } from "@vercel/blob";
+import { convertImageBufferToWebp } from "../utils/imageToWebp.js";
 
 export const getComponentNames = async () => {
   return await ComponentModel.getAllNames();
@@ -70,12 +71,14 @@ export const createNewComponent = async (data) => {
   });
 
   if (data?.imageFile) {
-    const extension = data.imageFile.originalname?.split(".").pop();
-    const pathname = `components/${componentId}/${Date.now()}${extension ? `.${extension}` : ""}`;
+    const { buffer, contentType, extension } = await convertImageBufferToWebp(
+      data.imageFile.buffer,
+    );
+    const pathname = `components/${componentId}/${Date.now()}.${extension}`;
 
-    const blob = await put(pathname, data.imageFile.buffer, {
+    const blob = await put(pathname, buffer, {
       access: "public",
-      contentType: data.imageFile.mimetype,
+      contentType,
     });
 
     await ComponentModel.updateImageById(componentId, blob.url);
@@ -99,12 +102,14 @@ export const modifyComponent = async (id, data) => {
   await ComponentModel.upsertPlatformLinks(id, data);
 
   if (data?.imageFile) {
-    const extension = data.imageFile.originalname?.split(".").pop();
-    const pathname = `components/${id}/${Date.now()}${extension ? `.${extension}` : ""}`;
+    const { buffer, contentType, extension } = await convertImageBufferToWebp(
+      data.imageFile.buffer,
+    );
+    const pathname = `components/${id}/${Date.now()}.${extension}`;
 
-    const blob = await put(pathname, data.imageFile.buffer, {
+    const blob = await put(pathname, buffer, {
       access: "public",
-      contentType: data.imageFile.mimetype,
+      contentType,
     });
 
     const imageUpdated = await ComponentModel.updateImageById(id, blob.url);
