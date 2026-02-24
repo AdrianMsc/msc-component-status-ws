@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import limiter from "./src/middlewares/rateLimiter.js";
 import componentRoutes from "./src/routes/component.routes.js";
 import inboxRoutes from "./src/routes/inbox.routes.js";
+import staticHtmlRoutes from "./src/routes/staticHtml.routes.js";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -16,6 +17,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4242;
 
+app.locals.publicDir = path.join(__dirname, "public");
+
 // Middlewares
 app.use(express.json());
 app.use(cors());
@@ -24,13 +27,10 @@ app.use(morgan("dev"));
 
 app.get("/favicon.ico", (_, res) => res.status(204).end());
 
-app.use(express.static(path.join(__dirname, "public")));
-
-app.get("/", (_, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+app.use(express.static(app.locals.publicDir));
 
 // Routes
+app.use("/", staticHtmlRoutes);
 app.use("/", componentRoutes);
 app.use("/", inboxRoutes);
 
