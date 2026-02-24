@@ -6,6 +6,61 @@
 
 Backend API to manage Design System component status: components CRUD, platform/resources handling (Figma, Guidelines, CDN, Storybook), feedback inbox, and Neon Postgres database. Deployable on Vercel.
 
+## Local setup and run
+
+1. Clone the repo
+2. `npm install`
+3. Create `.env` file (see Environment variables)
+4. `npm run dev`
+
+Base URL: `http://localhost:4242`
+
+## Scripts
+
+- **`npm run dev`**: start the API in development mode (hot reload)
+- **`npm start`**: start the API in production mode
+
+## Environment variables
+
+- `DATABASE_URL` (Neon Postgres)
+- `BLOB_READ_WRITE_TOKEN` (Vercel Blob)
+- `PORT` (optional, defaults to `4242`)
+
+## Project structure
+
+- **`index.js`**: Express app bootstrap (middlewares, static assets, and route mounting)
+- **`src/routes/`**: Express routers
+- **`src/controllers/`**: Request/response handlers (validation + orchestration)
+- **`src/services/`**: Business logic + transformations + external integrations
+- **`src/models/`**: Database access layer (SQL queries)
+- **`src/middlewares/`**: Cross-cutting Express middleware (rate limiting, multer, etc.)
+- **`public/`**: Static files served by Express
+
+## Static HTML pages (public + lab)
+
+This API also serves static HTML files from `public/`.
+
+- **Static assets** are served via `express.static(publicDir)`.
+- **HTML routes** are defined in `src/routes/staticHtml.routes.js` using MSC style:
+  - Routes: `src/routes/staticHtml.routes.js`
+  - Controller: `src/controllers/staticHtml.controller.js`
+  - Service: `src/services/staticHtml.service.js`
+
+### Available HTML routes
+
+- **GET** `/` serves `public/index.html`
+- **GET** `/lab/pdp-v2` serves `public/lab/pdp-v2/pdp.html`
+- **GET** `/lab/homepage-v2` serves `public/lab/homepage-v2/homepage-v2.html`
+
+### Add a new lab HTML route
+
+1. Create your HTML under `public/lab/<folder>/<file>.html`
+2. Add a route in `src/routes/staticHtml.routes.js`:
+
+```js
+router.get("/lab/<your-path>", getLabPage("<folder>/<file>.html"));
+```
+
 ## Resource model (Statuses & Links)
 
 Each component has:
@@ -240,18 +295,6 @@ Deletes component and its related records.
 
 - **DELETE** `/message/:id`
 - **Response**: `{"response": "Message deleted successfully", "id": "1"}`
-
-## Local setup and run
-
-1. Clone the repo
-2. `npm install`
-3. Create `.env` file (see Environment Variables)
-4. `npm run dev`
-
-## Environment variables
-
-- `DATABASE_URL` (Neon Postgres)
-- `BLOB_READ_WRITE_TOKEN` (Vercel Blob)
 
 ## Postman: how to test image uploads
 
