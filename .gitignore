@@ -1,2 +1,6 @@
 /node_modules
 .env
+public/lab/homepage-v2/.DS_Store
+public/lab/homepage-v2/assets/.DS_Store
+.gitignore
+public/lab/homepage-v2/assets/homepage/.DS_Store
