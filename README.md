@@ -327,4 +327,4 @@ Base URL: `http://localhost:4242`
 - **Body**:
   - Select `form-data`
   - Include `name` (Text)
-  - Add key `image` (File) to replace the current image lel
+  - Add key `image` (File) to replace the current image
