@@ -61,15 +61,25 @@ morgan.token('user-role', (req) => {
 	return req.user?.role || 'user';
 });
 
-// Middlewares
-app.use(helmet());
-app.use(express.json());
+// Middlewares - CORS FIRST to handle preflights and set headers early
 app.use(cors(corsOptions));
+app.use(
+	helmet({
+		crossOriginResourcePolicy: { policy: 'cross-origin' },
+		crossOriginOpenerPolicy: { policy: 'unsafe-none' }
+	})
+);
+app.use(express.json());
 app.use(cookieParser());
 app.use(sessionMiddleware);
 app.use(csrfTokenMiddleware);
 app.use(activityLogger); // Apply the custom activity logger
 app.use(limiter);
+
+// CSRF Token endpoint for frontend
+app.get('/csrf-token', (req, res) => {
+	res.json({ csrfToken: req.cookies['csrf-token'] });
+});
 
 // Enhanced Morgan format
 const morganFormat =
