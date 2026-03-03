@@ -7,10 +7,12 @@ import * as SessionService from '../services/session.service.js';
 
 const getCookieOptions = () => {
 	const isProd = process.env.NODE_ENV === 'production';
-	const sameSite = process.env.SESSION_COOKIE_SAMESITE || 'lax';
+	const sameSite = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase();
+	// SameSite=None REQUIRES Secure by browser spec — enforce it regardless of NODE_ENV
+	const secure = sameSite === 'none' ? true : isProd;
 	return {
 		httpOnly: true,
-		secure: isProd,
+		secure,
 		sameSite,
 		path: '/'
 	};
