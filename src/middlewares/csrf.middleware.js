@@ -3,10 +3,12 @@ import crypto from 'crypto';
 export const csrfTokenMiddleware = (req, res, next) => {
 	if (!req.cookies['csrf-token']) {
 		const token = crypto.randomBytes(32).toString('hex');
+		const sameSite = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase();
+		const secure = sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
 		res.cookie('csrf-token', token, {
 			httpOnly: false, // Frontend needs to read this
-			secure: process.env.NODE_ENV === 'production',
-			sameSite: process.env.SESSION_COOKIE_SAMESITE || 'lax',
+			secure,
+			sameSite,
 			path: '/'
 		});
 	}
