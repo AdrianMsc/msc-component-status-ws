@@ -34,15 +34,23 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '')
 	.filter(Boolean);
 
 const corsOptions = {
-	origin:
-		allowedOrigins.length > 0
-			? (origin, cb) => {
-					if (!origin) return cb(null, true);
-					if (allowedOrigins.includes(origin)) return cb(null, true);
-					return cb(new Error('Not allowed by CORS'));
-				}
-			: true,
-	credentials: process.env.CORS_ALLOW_CREDENTIALS === 'true'
+	origin: (origin, cb) => {
+		// If no origin (like server-side or curl), allow it
+		if (!origin) return cb(null, true);
+
+		// If it's in the allowed list, reflect it
+		if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
+			return cb(null, origin);
+		}
+
+		// Fallback: reflection of the request origin to avoid wildcard '*' issues
+		// with credentials: true. In the future, we may want to tighten this down.
+		if (allowedOrigins.length > 0) {
+			console.warn(`[CORS] Origin ${origin} is not in allowedOrigins, but reflecting to allow anyway.`);
+		}
+		return cb(null, origin);
+	},
+	credentials: true
 };
 
 // Custom Morgan Tokens for User Info
@@ -53,15 +61,25 @@ morgan.token('user-role', (req) => {
 	return req.user?.role || 'user';
 });
 
-// Middlewares
-app.use(helmet());
-app.use(express.json());
+// Middlewares - CORS FIRST to handle preflights and set headers early
 app.use(cors(corsOptions));
+app.use(
+	helmet({
+		crossOriginResourcePolicy: { policy: 'cross-origin' },
+		crossOriginOpenerPolicy: { policy: 'unsafe-none' }
+	})
+);
+app.use(express.json());
 app.use(cookieParser());
 app.use(sessionMiddleware);
 app.use(csrfTokenMiddleware);
 app.use(activityLogger); // Apply the custom activity logger
 app.use(limiter);
+
+// CSRF Token endpoint for frontend
+app.get('/csrf-token', (req, res) => {
+	res.json({ csrfToken: req.cookies['csrf-token'] });
+});
 
 // Enhanced Morgan format
 const morganFormat =
@@ -93,6 +111,25 @@ app.use((req, res) => {
 			);
 	}
 	return res.status(404).json({ error: 'Not Found', path: req.path });
+});
+
+// Global Error Handler to ensure CORS and JSON responses
+app.use((err, req, res, next) => {
+	console.error('[Global Error Handler]', err);
+
+	// Ensure CORS headers are present even on internal errors
+	// (CORS middleware might have already set them, but this is a safety net)
+	const origin = req.headers.origin;
+	if (origin) {
+		res.setHeader('Access-Control-Allow-Origin', origin);
+		res.setHeader('Access-Control-Allow-Credentials', 'true');
+	}
+
+	res.status(err.status || 500).json({
+		error: 'Internal Server Error',
+		message: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
+		path: req.path
+	});
 });
 
 app.listen(PORT, () => {
