@@ -49,7 +49,7 @@ Create a `.env` file based on `.env.example`. The following variables are suppor
 - `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed origins.
 - `CORS_ALLOW_CREDENTIALS`: Allow credentials in CORS (defaults to `true`).
 - `SESSION_COOKIE_NAME`: Name of the session cookie (defaults to `sid`).
-- `SESSION_COOKIE_SAMESITE`: `lax`, `strict`, or `none` (defaults to `lax`).
+- `SESSION_COOKIE_SAMESITE`: `lax`, `strict`, or `none` (defaults to `lax`). **Note:** Must be `none` if the frontend and backend are on different domains.
 - `SESSION_TTL_DAYS`: Session duration in days (defaults to `7`).
 - `OIDC_CLIENT_SECRET`: Client secret for OIDC (if needed).
 - `OIDC_SCOPE`: Requested scopes (defaults to `"openid profile email"`).
