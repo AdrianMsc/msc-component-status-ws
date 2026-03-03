@@ -7,10 +7,12 @@ import * as SessionService from '../services/session.service.js';
 
 const getCookieOptions = () => {
 	const isProd = process.env.NODE_ENV === 'production';
-	const sameSite = process.env.SESSION_COOKIE_SAMESITE || 'lax';
+	const sameSite = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase();
+	// SameSite=None REQUIRES Secure by browser spec — enforce it regardless of NODE_ENV
+	const secure = sameSite === 'none' ? true : isProd;
 	return {
 		httpOnly: true,
-		secure: isProd,
+		secure,
 		sameSite,
 		path: '/'
 	};
@@ -128,40 +130,45 @@ export const loginFrontendTokenExchange = async (req, res) => {
 					return res.status(401).json({ error: 'Invalid token' });
 				}
 
-				const provider = OidcService.getOidcProviderName() || 'auth0';
-				const providerSubject = decoded.sub;
+				try {
+					const provider = OidcService.getOidcProviderName() || 'auth0';
+					const providerSubject = decoded.sub;
 
-				// Fetch profile from IDP or Request Body
-				// We prefer data from request body if available, otherwise fallback to token claims
-				const email = req.body.email || decoded.email || null;
-				const name = req.body.name || decoded.name || decoded.nickname || null;
-				const picture = req.body.picture || decoded.picture || null;
-				const role = req.body.role || decoded['https://msc-component-status-api/roles']?.[0] || 'user';
+					// Fetch profile from IDP or Request Body
+					// We prefer data from request body if available, otherwise fallback to token claims
+					const email = req.body.email || decoded.email || null;
+					const name = req.body.name || decoded.name || decoded.nickname || null;
+					const picture = req.body.picture || decoded.picture || null;
+					const role = req.body.role || decoded['https://msc-component-status-api/roles']?.[0] || 'user';
 
-				const user = await UserModel.upsertFromOidcProfile({
-					provider,
-					providerSubject,
-					email,
-					name,
-					picture,
-					role
-				});
+					const user = await UserModel.upsertFromOidcProfile({
+						provider,
+						providerSubject,
+						email,
+						name,
+						picture,
+						role
+					});
 
-				const { sessionId, expiresAt } = await SessionService.createSessionForUser({
-					userId: user.id,
-					ip: req.ip,
-					userAgent: req.headers['user-agent'],
-					data: { provider }
-				});
+					const { sessionId, expiresAt } = await SessionService.createSessionForUser({
+						userId: user.id,
+						ip: req.ip,
+						userAgent: req.headers['user-agent'],
+						data: { provider }
+					});
 
-				const cookieName = SessionService.getSessionCookieName();
+					const cookieName = SessionService.getSessionCookieName();
 
-				res.cookie(cookieName, sessionId, {
-					...getCookieOptions(),
-					expires: new Date(expiresAt)
-				});
+					res.cookie(cookieName, sessionId, {
+						...getCookieOptions(),
+						expires: new Date(expiresAt)
+					});
 
-				return res.json({ success: true, user: { id: user.id, email: user.email, name: user.name } });
+					return res.json({ success: true, user: { id: user.id, email: user.email, name: user.name } });
+				} catch (innerError) {
+					console.error('Error during token exchange processing:', innerError);
+					return res.status(500).json({ error: 'Internal Server Error during token exchange processing' });
+				}
 			}
 		);
 	} catch (error) {
