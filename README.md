@@ -9,9 +9,12 @@ Backend API to manage Design System component status: components CRUD, platform/
 ## Local setup and run
 
 1. Clone the repo
-2. `npm install`
-3. Create `.env` file (see Environment variables)
-4. `npm run dev`
+2. Navigate to `fds-dev-back/`
+3. Install dependencies: `npm install`
+4. Set up environment variables:
+   - Create `.env` file based on `.env.example`
+   - Provide a valid `DATABASE_URL`
+5. Start the development server: `npm run dev`
 
 Base URL: `http://localhost:4242`
 
