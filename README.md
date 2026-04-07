@@ -6,6 +6,13 @@
 
 Backend API to manage Design System component status: components CRUD, platform/resources handling (Figma, Guidelines, CDN, Storybook), feedback inbox, and Neon Postgres database. Deployable on Vercel.
 
+## Prerequisites
+
+- **Node.js**: Version 18 or higher.
+- **Neon Postgres**: A database instance on Neon.
+- **Vercel**: Account for Blob storage (optional for local, but needed for image uploads).
+- **Auth0**: Account for authentication.
+
 ## Local setup and run
 
 1. Clone the repo
@@ -34,9 +41,32 @@ This project stores SQL migrations under `migrations/`.
 
 ## Environment variables
 
-- `DATABASE_URL` (Neon Postgres)
-- `BLOB_READ_WRITE_TOKEN` (Vercel Blob)
-- `PORT` (optional, defaults to `4242`)
+Create a `.env` file based on `.env.example`. The following variables are supported:
+
+### Required
+- `DATABASE_URL`: Neon Postgres connection string.
+- `OIDC_ISSUER_URL`: The discovery URL for your OIDC provider (e.g., Auth0).
+- `OIDC_CLIENT_ID`: Your OIDC client ID.
+- `OIDC_REDIRECT_URI`: The callback URL (e.g., `http://localhost:4242/auth/callback`).
+- `OIDC_ISSUER`: Base URL of the OIDC issuer (used for JWKS).
+- `OIDC_AUDIENCE`: The API identifier/audience.
+
+### Optional (with defaults)
+- `PORT`: Server port (defaults to `4242`).
+- `NODE_ENV`: `development` or `production`.
+- `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed origins.
+- `CORS_ALLOW_CREDENTIALS`: Allow credentials in CORS (defaults to `true`).
+- `SESSION_COOKIE_NAME`: Name of the session cookie (defaults to `sid`).
+- `SESSION_COOKIE_SAMESITE`: `lax`, `strict`, or `none` (defaults to `lax`). **Note:** Must be `none` if the frontend and backend are on different domains.
+- `SESSION_TTL_DAYS`: Session duration in days (defaults to `7`).
+- `OIDC_CLIENT_SECRET`: Client secret for OIDC (if needed).
+- `OIDC_SCOPE`: Requested scopes (defaults to `"openid profile email"`).
+- `OIDC_PROVIDER_NAME`: Name used in logs/internal mapping (defaults to `"oidc"`).
+- `OIDC_END_SESSION_URL`: URL to redirect for IDP logout.
+- `OIDC_POST_LOGOUT_REDIRECT_URI`: Redirect after IDP logout.
+- `AUTH_REDIRECT_AFTER_LOGIN`: Local redirect after successful login (defaults to `/`).
+- `AUTH_REDIRECT_AFTER_LOGOUT`: Local redirect after logout (defaults to `/`).
+- `BLOB_READ_WRITE_TOKEN`: Token for Vercel Blob storage (required for image uploads).
 
 ## Project structure
 

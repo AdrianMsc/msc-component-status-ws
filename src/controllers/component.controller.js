@@ -1,39 +1,42 @@
-import * as ComponentService from "../services/component.service.js";
-import { put } from "@vercel/blob";
-import { convertImageBufferToWebp } from "../utils/imageToWebp.js";
+import * as ComponentService from '../services/component.service.js';
+import { put } from '@vercel/blob';
+import { convertImageBufferToWebp } from '../utils/imageToWebp.js';
 
 export const handshake = async (_, res) => {
-  await res.json("👍");
+	await res.json('👍');
 };
 
 export const getAllComponentNames = async (_, res) => {
-  try {
-    const components = await ComponentService.getComponentNames();
-    res.json(components);
-  } catch (error) {
-    console.error("Error fetching components:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+	try {
+		const components = await ComponentService.getComponentNames();
+		res.json(components);
+	} catch (error) {
+		console.error('Error fetching components:', error);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
 };
 
 export const getComponentCount = async (_, res) => {
-  try {
-    const count = await ComponentService.getComponentCount();
-    res.json({ count });
-  } catch (error) {
-    console.error("Error counting components:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+	try {
+		const count = await ComponentService.getComponentCount();
+		res.json({ count });
+	} catch (error) {
+		console.error('Error counting components:', error);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
 };
 
 export const getAllComponents = async (_, res) => {
-  try {
-    const result = await ComponentService.getFormattedComponents();
-    res.json(result);
-  } catch (error) {
-    console.error("Error fetching components:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+	try {
+		const result = await ComponentService.getFormattedComponents();
+		res.json(result);
+	} catch (error) {
+		console.error('Error fetching components:', error);
+		res.status(500).json({
+			error: 'Internal Server Error',
+			details: error.message
+		});
+	}
 };
 
 export const createComponent = async (req, res) => {
@@ -129,32 +132,30 @@ export const updateComponentResources = async (req, res) => {
 };
 
 export const uploadImage = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "Required field: image." });
-    }
+	try {
+		if (!req.file) {
+			return res.status(400).json({ error: 'Required field: image.' });
+		}
 
-    const { buffer, contentType, extension } = await convertImageBufferToWebp(
-      req.file.buffer,
-    );
-    const pathname = `uploads/${Date.now()}.${extension}`;
+		const { buffer, contentType, extension } = await convertImageBufferToWebp(req.file.buffer);
+		const pathname = `uploads/${Date.now()}.${extension}`;
 
-    const blob = await put(pathname, buffer, {
-      access: "public",
-      contentType,
-    });
+		const blob = await put(pathname, buffer, {
+			access: 'public',
+			contentType
+		});
 
-    return res.status(201).json({
-      message: "Image uploaded successfully.",
-      url: blob.url,
-      pathname: blob.pathname,
-      contentType: blob.contentType,
-      size: blob.size,
-    });
-  } catch (error) {
-    console.error("Error uploading image:", error);
-    return res.status(500).json({ error: "Error uploading image." });
-  }
+		return res.status(201).json({
+			message: 'Image uploaded successfully.',
+			url: blob.url,
+			pathname: blob.pathname,
+			contentType: blob.contentType,
+			size: blob.size
+		});
+	} catch (error) {
+		console.error('Error uploading image:', error);
+		return res.status(500).json({ error: 'Error uploading image.' });
+	}
 };
 
 export const deleteComponent = async (req, res) => {
