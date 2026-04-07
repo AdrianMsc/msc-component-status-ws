@@ -47,11 +47,14 @@ export const createComponent = async (req, res) => {
   }
 
   try {
-    const { componentId } = await ComponentService.createNewComponent({
-      ...req.body,
-      category,
-      imageFile: req.file,
-    });
+    const { componentId } = await ComponentService.createNewComponent(
+      {
+        ...req.body,
+        category,
+        imageFile: req.file,
+      },
+      req.user,
+    );
 
     res.status(201).json({
       message: "Component created successfully.",
@@ -76,11 +79,15 @@ export const updateComponent = async (req, res) => {
   }
 
   try {
-    await ComponentService.modifyComponent(id, {
-      ...req.body,
-      category,
-      imageFile: req.file,
-    });
+    await ComponentService.modifyComponent(
+      id,
+      {
+        ...req.body,
+        category,
+        imageFile: req.file,
+      },
+      req.user,
+    );
 
     return res.status(200).json({
       message: "Component, statuses, and platform links updated successfully.",
@@ -101,7 +108,7 @@ export const updateComponentResources = async (req, res) => {
 
   try {
     const { statusUpdated, linksUpdated } =
-      await ComponentService.updateResources(id, req.body);
+      await ComponentService.updateResources(id, req.body, req.user);
 
     res.status(200).json({
       message: "Component resources updated successfully.",
@@ -154,7 +161,7 @@ export const deleteComponent = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await ComponentService.removeComponent(id);
+    await ComponentService.removeComponent(id, req.user);
 
     res.status(200).json({
       message: "Component, related records, and image erased successfully.",

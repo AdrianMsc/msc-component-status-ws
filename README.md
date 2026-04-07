@@ -23,6 +23,15 @@ Base URL: `http://localhost:4242`
 - **`npm run dev`**: start the API in development mode (hot reload)
 - **`npm start`**: start the API in production mode
 
+## Database migrations
+
+This project stores SQL migrations under `migrations/`.
+
+- `001_users_sessions.sql`: users + sessions auth foundation.
+- `002_activity_logs.sql`: component activity changelog (create/update/delete events).
+
+`002_activity_logs.sql` is additive-only (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`) and does not remove existing data.
+
 ## Environment variables
 
 - `DATABASE_URL` (Neon Postgres)
@@ -226,6 +235,46 @@ Partially updates just the status or link fields.
   "storybook": "deprecated",
   "figmaLink": "https://new-link.com",
   "storybookLink": "https://new-storybook-link.com"
+}
+```
+
+#### Component History (Admin only)
+
+Returns component CRUD activity records for audit/changelog purposes.
+
+- **GET** `/components/history`
+- **Auth**: required (`admin` role)
+- **Query params** (optional):
+  - `page` (default: `1`)
+  - `pageSize` (default: `20`, max: `100`)
+  - `action` (`component.created` | `component.updated` | `component.deleted`)
+  - `componentId` (number)
+  - `startDate` (`YYYY-MM-DD` or ISO datetime)
+  - `endDate` (`YYYY-MM-DD` or ISO datetime)
+
+- **Response**:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "entity": "component",
+      "action": "component.updated",
+      "component_id": 10,
+      "actor_user_id": 2,
+      "actor_email": "admin@company.com",
+      "actor_role": "admin",
+      "details": { "before": {}, "after": {} },
+      "created_at": "2026-04-07T17:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "totalPages": 1
+  }
 }
 ```
 
