@@ -36,8 +36,9 @@ This project stores SQL migrations under `migrations/`.
 
 - `001_users_sessions.sql`: users + sessions auth foundation.
 - `002_activity_logs.sql`: component activity changelog (create/update/delete events).
+- `003_component_versions.sql`: component versioning system (version history per component).
 
-`002_activity_logs.sql` is additive-only (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`) and does not remove existing data.
+`002_activity_logs.sql` and `003_component_versions.sql` are additive-only (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`) and do not remove existing data.
 
 ## Environment variables
 
@@ -183,7 +184,7 @@ Fetches a list of just component names.
 
 #### Create Component
 
-Creates a new component.
+Creates a new component or a new version of an existing component.
 
 - **POST** `/categories/:category/components`
 - **Content-Type**: `multipart/form-data`
@@ -200,6 +201,9 @@ Creates a new component.
   - `figmaLink`: "https://figma.com/..."
   - `storybookLink`: "https://your-storybook-url/..."
   - `image`: (optional file) image to upload to Vercel Blob
+  - `isNewVersion`: (optional boolean) if true, creates a new version instead of a new component
+  - `parentComponentId`: (required if isNewVersion is true) ID of the existing component
+  - `version`: (required if isNewVersion is true) version number (e.g., "2.0.0")
 - **Example**:
 
 ```bash
@@ -207,6 +211,19 @@ curl -X POST "http://localhost:4242/categories/Foundations/components" \
   -F 'name=Button' \
   -F 'description=Main CTA' \
   -F 'image=@/path/to/image.png'
+```
+
+#### Create New Version of Existing Component
+
+To create a new version of an existing component:
+
+```bash
+curl -X POST "http://localhost:4242/categories/Foundations/components" \
+  -F 'name=Button' \
+  -F 'isNewVersion=true' \
+  -F 'parentComponentId=5' \
+  -F 'version=2.0.0' \
+  -F 'figma=✅'
 ```
 
 #### Update Component
@@ -339,7 +356,117 @@ Deletes component and its related records.
 - **DELETE** `/components/:id`
 - **Response**: `{"message": "Component, related records, and image erased successfully."}`
 
-### 3. Inbox (Feedback)
+### 6. Component Versioning
+
+Each component can have multiple versions. Versions are tracked in the `component_versions` table.
+
+#### Get All Versions for a Component
+
+- **GET** `/components/:id/versions`
+- **Response**:
+
+```json
+[
+  {
+    "id": 1,
+    "component_id": 5,
+    "version": "1.0.0",
+    "is_latest": true,
+    "created_at": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "component_id": 5,
+    "version": "2.0.0",
+    "is_latest": false,
+    "created_at": "2025-06-01T00:00:00.000Z"
+  }
+]
+```
+
+#### Get Latest Version
+
+- **GET** `/components/:id/versions/latest`
+- **Response**:
+
+```json
+{
+  "id": 2,
+  "component_id": 5,
+  "version": "2.0.0",
+  "is_latest": true,
+  "created_at": "2025-06-01T00:00:00.000Z"
+}
+```
+
+#### Create New Version
+
+Creates a new version for an existing component.
+
+- **POST** `/components/:id/versions`
+- **Content-Type**: `application/json`
+- **Body**:
+```json
+{
+  "version": "2.0.0"
+}
+```
+- **Response**:
+```json
+{
+  "message": "Version created successfully.",
+  "version": {
+    "id": 3,
+    "component_id": 5,
+    "version": "2.0.0",
+    "is_latest": true,
+    "created_at": "2025-06-15T00:00:00.000Z"
+  }
+}
+```
+
+#### Update Version
+
+- **PUT** `/versions/:versionId`
+- **Content-Type**: `application/json`
+- **Body**:
+```json
+{
+  "version": "2.1.0"
+}
+```
+
+#### Delete Version
+
+- **DELETE** `/versions/:versionId`
+- **Response**: `{"message": "Version deleted successfully."}`
+
+#### Set Latest Version
+
+Sets a specific version as the latest.
+
+- **PUT** `/versions/:versionId/set-latest`
+- **Response**:
+```json
+{
+  "message": "Latest version updated successfully.",
+  "version": {
+    "id": 3,
+    "component_id": 5,
+    "version": "2.1.0",
+    "is_latest": true,
+    "created_at": "2025-06-15T00:00:00.000Z"
+  }
+}
+```
+
+#### Get Component with Specific Version
+
+- **GET** `/components/:id?versionId=:versionId`
+- **Query params** (optional):
+  - `versionId`: specific version ID to fetch
+
+### 7. Inbox (Feedback)
 
 #### Get Messages
 

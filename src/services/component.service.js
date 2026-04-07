@@ -18,7 +18,7 @@ export const getComponentCount = async () => {
 };
 
 export const getFormattedComponents = async () => {
-  const rows = await ComponentModel.getAllWithDetails();
+  const rows = await ComponentModel.getAllComponentsWithVersions();
 
   return rows.reduce((acc, row) => {
     let category = acc.find((c) => c.category === row.component_category);
@@ -37,6 +37,7 @@ export const getFormattedComponents = async () => {
         atomicType: row.component_atomic_type,
         comment: row.component_comment,
         image: row.component_image,
+        version: row.component_version || '1.0.0',
         createdAt: row.component_creation,
         updatedAt: row.component_update,
         statuses: [],
@@ -58,25 +59,32 @@ export const getFormattedComponents = async () => {
 };
 
 export const createNewComponent = async (data, actor) => {
-  const componentId = await ComponentModel.create({
-    ...data,
-    imageUrl: null,
-  });
+  const { isNewVersion, parentComponentId, version, ...componentData } = data;
+  
+  // If this is a new version of an existing component, use the parent component ID
+  const componentId = isNewVersion && parentComponentId
+    ? parentComponentId
+    : await ComponentModel.create({
+        ...componentData,
+        imageUrl: null,
+      });
 
   if (!componentId) {
     throw new Error("Component ID not retrieved after insert.");
   }
 
+  // Create statuses and platform links
   await ComponentModel.createStatuses({
     componentId,
-    ...data,
+    ...componentData,
   });
 
   await ComponentModel.createPlatformLinks({
     componentId,
-    ...data,
+    ...componentData,
   });
 
+  // Handle image upload
   if (data?.imageFile) {
     const { buffer, contentType, extension } = await convertImageBufferToWebp(
       data.imageFile.buffer,
@@ -91,19 +99,29 @@ export const createNewComponent = async (data, actor) => {
     await ComponentModel.updateImageById(componentId, blob.url);
   }
 
+  // Create version record
+  const versionToCreate = version || '1.0.0';
+  await ComponentModel.createVersion({
+    componentId,
+    version: versionToCreate,
+  });
+
   safeLog({
-    action: 'create',
+    action: isNewVersion ? 'create_version' : 'create',
     componentId,
     actor,
     details: {
       name: data?.name,
       category: data?.category,
       atomicType: data?.atomicType ?? null,
-      hasImage: Boolean(data?.imageFile)
+      hasImage: Boolean(data?.imageFile),
+      isNewVersion: Boolean(isNewVersion),
+      parentComponentId: parentComponentId ?? null,
+      version: versionToCreate
     }
   });
 
-  return { componentId };
+  return { componentId, version: versionToCreate };
 };
 
 export const modifyComponent = async (id, data, actor) => {
@@ -271,4 +289,100 @@ export const removeComponent = async (id, actor) => {
       }
     }
   });
+};
+
+// ============================================
+// Version Service Functions
+// ============================================
+
+export const getVersions = async (componentId) => {
+  return await ComponentModel.getVersionsByComponent(componentId);
+};
+
+export const getLatestVersion = async (componentId) => {
+  return await ComponentModel.getLatestVersion(componentId);
+};
+
+export const getVersion = async (versionId) => {
+  return await ComponentModel.getVersionById(versionId);
+};
+
+export const createVersion = async (componentId, version, actor) => {
+  const versionRecord = await ComponentModel.createVersion({ componentId, version });
+  
+  safeLog({
+    action: 'create_version',
+    componentId,
+    actor,
+    details: {
+      version: version
+    }
+  });
+  
+  return versionRecord;
+};
+
+export const updateVersion = async (versionId, version, actor) => {
+  const updated = await ComponentModel.updateVersion(versionId, { version });
+  
+  if (updated) {
+    safeLog({
+      action: 'update_version',
+      componentId: updated.component_id,
+      actor,
+      details: {
+        versionId,
+        oldVersion: updated.version,
+        newVersion: version
+      }
+    });
+  }
+  
+  return updated;
+};
+
+export const deleteVersion = async (versionId, actor) => {
+  const [versionData] = await ComponentModel.getVersionById(versionId);
+  
+  if (!versionData) {
+    throw new Error("Version not found.");
+  }
+  
+  const result = await ComponentModel.deleteVersion(versionId);
+  
+  if (result.rowCount > 0) {
+    safeLog({
+      action: 'delete_version',
+      componentId: versionData.component_id,
+      actor,
+      details: {
+        versionId,
+        version: versionData.version
+      }
+    });
+  }
+  
+  return result;
+};
+
+export const setLatestVersion = async (versionId, actor) => {
+  const updated = await ComponentModel.setLatestVersion(versionId);
+  
+  if (updated) {
+    safeLog({
+      action: 'set_latest_version',
+      componentId: updated.component_id,
+      actor,
+      details: {
+        versionId,
+        version: updated.version
+      }
+    });
+  }
+  
+  return updated;
+};
+
+export const getComponentById = async (id, versionId = null) => {
+  return await ComponentModel.findByIdWithVersion(id, versionId);
 };
