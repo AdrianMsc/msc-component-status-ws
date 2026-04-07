@@ -91,6 +91,35 @@ export const findById = async (id) => {
   return component;
 };
 
+export const findByIdWithRelations = async (id) => {
+  const query = `
+    SELECT
+      c.id,
+      c.name,
+      c.category,
+      c.atomic_type,
+      c.comment,
+      c.description,
+      c.image,
+      c.created_at,
+      c.updated_at,
+      s.figma,
+      s.guidelines,
+      s.cdn,
+      s.storybook,
+      pl.figma AS figma_link,
+      pl.storybook AS storybook_link
+    FROM component c
+    LEFT JOIN statuses s ON s.comp_id = c.id
+    LEFT JOIN platform_links pl ON pl.comp_id = c.id
+    WHERE c.id = $1
+    LIMIT 1
+  `;
+
+  const [component] = await sql(query, [id]);
+  return component;
+};
+
 export const update = async (
   id,
   { name, category, comment, description, image, atomicType },
@@ -190,13 +219,14 @@ export const updatePlatformLinkFields = async (
 };
 
 export const deleteById = async (id) => {
-  const result = await sql`
-      WITH deleted_component AS (
-        DELETE FROM component WHERE id = ${id} RETURNING id
-      )
-      DELETE FROM statuses WHERE comp_id IN (SELECT id FROM deleted_component);
-    `;
-  // Postgres returns array for simple queries, checking both just in case depending on driver result
-  // The original code checked result.count and result.rowCount
-  return result;
+  const deleted = await sql(`DELETE FROM component WHERE id = $1 RETURNING id`, [id]);
+
+  if (!deleted.length) {
+    return { rowCount: 0 };
+  }
+
+  await sql(`DELETE FROM statuses WHERE comp_id = $1`, [id]);
+  await sql(`DELETE FROM platform_links WHERE comp_id = $1`, [id]);
+
+  return { rowCount: deleted.length };
 };

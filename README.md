@@ -16,13 +16,12 @@ Backend API to manage Design System component status: components CRUD, platform/
 ## Local setup and run
 
 1. Clone the repo
-2. `npm install`
-3. Create `.env` file based on `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-4. Update the variables in `.env` with your actual credentials.
-5. `npm run dev`
+2. Navigate to `fds-dev-back/`
+3. Install dependencies: `npm install`
+4. Set up environment variables:
+   - Create `.env` file based on `.env.example`
+   - Provide a valid `DATABASE_URL`
+5. Start the development server: `npm run dev`
 
 Base URL: `http://localhost:4242`
 
@@ -30,6 +29,15 @@ Base URL: `http://localhost:4242`
 
 - **`npm run dev`**: start the API in development mode (hot reload)
 - **`npm start`**: start the API in production mode
+
+## Database migrations
+
+This project stores SQL migrations under `migrations/`.
+
+- `001_users_sessions.sql`: users + sessions auth foundation.
+- `002_activity_logs.sql`: component activity changelog (create/update/delete events).
+
+`002_activity_logs.sql` is additive-only (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`) and does not remove existing data.
 
 ## Environment variables
 
@@ -257,6 +265,46 @@ Partially updates just the status or link fields.
   "storybook": "deprecated",
   "figmaLink": "https://new-link.com",
   "storybookLink": "https://new-storybook-link.com"
+}
+```
+
+#### Component History (Admin only)
+
+Returns component CRUD activity records for audit/changelog purposes.
+
+- **GET** `/components/history`
+- **Auth**: required (`admin` role)
+- **Query params** (optional):
+  - `page` (default: `1`)
+  - `pageSize` (default: `20`, max: `100`)
+  - `action` (`component.created` | `component.updated` | `component.deleted`)
+  - `componentId` (number)
+  - `startDate` (`YYYY-MM-DD` or ISO datetime)
+  - `endDate` (`YYYY-MM-DD` or ISO datetime)
+
+- **Response**:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "entity": "component",
+      "action": "component.updated",
+      "component_id": 10,
+      "actor_user_id": 2,
+      "actor_email": "admin@company.com",
+      "actor_role": "admin",
+      "details": { "before": {}, "after": {} },
+      "created_at": "2026-04-07T17:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "totalPages": 1
+  }
 }
 ```
 

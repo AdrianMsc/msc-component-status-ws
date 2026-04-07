@@ -7,6 +7,7 @@ import componentRoutes from './src/routes/component.routes.js';
 import inboxRoutes from './src/routes/inbox.routes.js';
 import staticHtmlRoutes from './src/routes/staticHtml.routes.js';
 import authRoutes from './src/routes/auth.routes.js';
+import activityRoutes from './src/routes/activity.routes.js';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -98,6 +99,7 @@ app.use(express.static(app.locals.publicDir));
 app.use('/', staticHtmlRoutes);
 app.use('/', authRoutes);
 app.use('/', componentRoutes);
+app.use('/', activityRoutes);
 app.use('/', inboxRoutes);
 
 app.use((req, res) => {
